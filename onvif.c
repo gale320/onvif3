@@ -4,19 +4,20 @@
 
 #include "Binding.nsmap"
 
-#include <errno.h> 
-#include <netdb.h> 
-#include <sys/types.h> 
-#include <netinet/in.h> 
+#include <errno.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 
 #define AUTO_URI_FLAG 1
 #define RTSP_URI_XADDR "rtsp://192.168.1.248/stream1"
+#define MAXINTERFACES 16
 
 char *GetLocalHostIP()
-{  
+{
     char *ip=NULL;
     int fd;
     struct ifreq ifr; ///if.h
@@ -25,46 +26,46 @@ char *GetLocalHostIP()
     if ((fd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) //socket.h
     {
     	memset(&ifr, 0, sizeof(ifr));
-    	
+
     	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ - 1);
-    	
+
     	if(ioctl(fd, SIOCGIFADDR, &ifr) == -1) {
     		perror("ioctl error");
     	}
-    	
+
     	addr = (struct sockaddr_in *)&(ifr.ifr_addr);
     	ip = inet_ntoa(addr->sin_addr);
-      
+
       close (fd);
     }
-    
+
     return ip;
 }
 
 static int SetIPConf(const char *pszIP, const char *pszMask, const char *pszGateway)
 {
 	int fd = 0;
-	
+
 	fd = open("/etc/network/interfaces", O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP);
 	if(fd < 0){
 		perror("open file:");
 		return -1;
 	}
-	
+
 	char szBuf[1024] = {0};
-	
-	snprintf(szBuf, sizeof(szBuf), "# Configure Loopback\nauto lo\niface lo inet loopback\n\n\nauto eth0\niface eth0 inet static\naddress %s\nnetmask %s\ngateway %s\n",pszIP, pszMask, pszGateway);				
+
+	snprintf(szBuf, sizeof(szBuf), "# Configure Loopback\nauto lo\niface lo inet loopback\n\n\nauto eth0\niface eth0 inet static\naddress %s\nnetmask %s\ngateway %s\n",pszIP, pszMask, pszGateway);
 	int nBufLen = 0;
 	int nRet = 0;
-	
+
 	nBufLen = strlen(szBuf);
-	
+
 	nRet = write(fd, szBuf, nBufLen);
 	if (nBufLen != nRet) {
 		perror("write ip interfaces failed:");
 		return -2;
 	}
-	
+
 	close(fd);
 	return 0;
 }
@@ -132,7 +133,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
 {
     printf("%s\n",__FUNCTION__);
     float a10086 = 0.0;
-    
+
     struct ns3__BacklightCompensation20* pBacklightCompensation;
     struct ns3__Exposure20* pExposure;
     struct ns3__FocusConfiguration20* pFocusConfiguration;
@@ -144,19 +145,19 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pFocusConfiguration = (struct ns3__FocusConfiguration20*)soap_malloc(soap,sizeof(struct ns3__FocusConfiguration20));
     pIrCutFilter = (enum ns3__IrCutFilterMode*)soap_malloc(soap,sizeof(enum ns3__IrCutFilterMode));
     pWhiteBalance = (struct ns3__WhiteBalance20*)soap_malloc(soap,sizeof(struct ns3__WhiteBalance20));
-    pWideDynamicRange = (struct ns3__WideDynamicRange20*)soap_malloc(soap,sizeof(struct ns3__WideDynamicRange20));    
+    pWideDynamicRange = (struct ns3__WideDynamicRange20*)soap_malloc(soap,sizeof(struct ns3__WideDynamicRange20));
     memset(pBacklightCompensation,0,sizeof(struct ns3__BacklightCompensation20));
     memset(pExposure,0,sizeof(struct ns3__Exposure20));
-    memset(pFocusConfiguration,0,sizeof(struct ns3__FocusConfiguration20)); 
+    memset(pFocusConfiguration,0,sizeof(struct ns3__FocusConfiguration20));
     memset(pIrCutFilter,0,sizeof(enum ns3__IrCutFilterMode));
     memset(pWhiteBalance,0,sizeof(struct ns3__WhiteBalance20));
     memset(pWideDynamicRange,0,sizeof(struct ns3__WideDynamicRange20));
 
-    //±³¹â²¹³¥
+    //ï¿½ï¿½ï¿½â²¹ï¿½ï¿½
     pBacklightCompensation->Mode = ns3__BacklightCompensationMode__OFF;
     pBacklightCompensation->Level= &a10086;//0
 
-    //ÆØ¹âÊ±¼ä
+    //ï¿½Ø¹ï¿½Ê±ï¿½ï¿½
     pExposure->Mode = ns3__ExposureMode__AUTO;
     #if 0
     struct ns3__Rectangle *pWindow;
@@ -170,7 +171,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pPriority= (enum ns3__ExposurePriority*)soap_malloc(soap,sizeof(enum ns3__ExposurePriority));
     memset(pPriority,0,sizeof(enum ns3__ExposurePriority));
     *pPriority = ns3__ExposurePriority__FrameRate;
-    
+
     pExposure->Priority = pPriority;
     pExposure->Window = pWindow;
     pExposure->MaxExposureTime = &a10086;
@@ -184,7 +185,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pExposure->ExposureTime = &a10086;
     #endif
 
-    //¾Û½¹
+    //ï¿½Û½ï¿½
     pFocusConfiguration->AutoFocusMode = ns3__AutoFocusMode__MANUAL;
     #if 0
     pFocusConfiguration->DefaultSpeed = &a10086;
@@ -193,14 +194,14 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     #endif
     //ircut filter
     *pIrCutFilter = ns3__IrCutFilterMode__AUTO;
-    //°×Æ½ºâ
+    //ï¿½ï¿½Æ½ï¿½ï¿½
     pWhiteBalance->Mode = ns3__WhiteBalanceMode__AUTO;
     //pWhiteBalance->CrGain = &a10086;
     //pWhiteBalance->CbGain = &a10086;
-    //¿í¶¯Ì¬·ù¶È
+    //ï¿½?Ì¬ï¿½ï¿½ï¿½
     pWideDynamicRange->Mode = ns3__WideDynamicMode__ON;
     pWideDynamicRange->Level= &a10086;//0
-    
+
     struct ns3__ImagingSettings20* pImagingSettings20;
     pImagingSettings20 = (struct ns3__ImagingSettings20*)soap_malloc(soap,sizeof(struct ns3__ImagingSettings20));
     memset(pImagingSettings20,0,sizeof(struct ns3__ImagingSettings20));
@@ -214,7 +215,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pImagingSettings20->IrCutFilter = pIrCutFilter;
     pImagingSettings20->WhiteBalance = pWhiteBalance;
     pImagingSettings20->WideDynamicRange = pWideDynamicRange;
-    
+
     ns12__GetImagingSettingsResponse->ImagingSettings = pImagingSettings20;
     return SOAP_OK;
 }
@@ -222,14 +223,14 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
 int __ns12__SetImagingSettings(struct soap* soap, struct _ns12__SetImagingSettings *ns12__SetImagingSettings, struct _ns12__SetImagingSettingsResponse *ns12__SetImagingSettingsResponse)
 {
     printf("%s\n",__FUNCTION__);
-    
+
     return SOAP_OK;
 }
 
 int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOptions, struct _ns12__GetOptionsResponse *ns12__GetOptionsResponse)
 {
     printf("%s\n",__FUNCTION__);
-    
+
     struct ns3__ImagingOptions20* pImagingOptions;
     pImagingOptions = (struct ns3__ImagingOptions20*)soap_malloc(soap,sizeof(struct ns3__ImagingOptions20));
     memset(pImagingOptions,0,sizeof(struct ns3__ImagingOptions20));
@@ -244,7 +245,7 @@ int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOpt
     pImagingOptions->Sharpness;
     pImagingOptions->WideDynamicRange;
     pImagingOptions->WhiteBalance;
-    
+
     ns12__GetOptionsResponse->ImagingOptions = pImagingOptions;
     return SOAP_OK;
 }
@@ -273,14 +274,14 @@ int __ns12__GetMoveOptions(struct soap* soap, struct _ns12__GetMoveOptions *ns12
     pAPosition->Max = 10086;
     pASpeed->Max = 10086;
     pASpeed->Min = 10086;
-    
+
     pCSpeed->Max = 10086;
     pCSpeed->Min = 10086;
 
     pRDistance->Max = 10086;
     pRDistance->Min = 10086;
     pRSpeed->Max = 10086;
-    pRSpeed->Min = 10086;	
+    pRSpeed->Min = 10086;
 
     struct ns3__AbsoluteFocusOptions *pAbsolute;
 	struct ns3__ContinuousFocusOptions *pContinuous;
@@ -296,14 +297,14 @@ int __ns12__GetMoveOptions(struct soap* soap, struct _ns12__GetMoveOptions *ns12
     pContinuous->Speed  = pCSpeed;
     pRelative->Distance = pRDistance;
     pRelative->Speed    = pRSpeed;
-    
+
     struct ns3__MoveOptions20* pMoveOptions;
     pMoveOptions = (struct ns3__MoveOptions20*)soap_malloc(soap,sizeof(struct ns3__MoveOptions20));
     memset(pMoveOptions,0,sizeof(struct ns3__MoveOptions20));
     pMoveOptions->Absolute  = pAbsolute;
     pMoveOptions->Continuous= pContinuous;
     pMoveOptions->Relative  = pRelative;
-    
+
     ns12__GetMoveOptionsResponse->MoveOptions = pMoveOptions;
     return SOAP_OK;
 }
@@ -323,9 +324,9 @@ int __ns13__GetPresets(struct soap* soap, struct _ns13__GetPresets *ns13__GetPre
 int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStatus, struct _ns13__GetStatusResponse *ns13__GetStatusResponse)
 {
     printf("%s\n",__FUNCTION__);
-    time_t rawtime; 
-    time(&rawtime); 
-    
+    time_t rawtime;
+    time(&rawtime);
+
     struct ns3__Vector2D *pPanTilt;
 	struct ns3__Vector1D *pZoom;
     pPanTilt= (struct ns3__Vector2D*)soap_malloc(soap,sizeof(struct ns3__Vector2D));
@@ -337,7 +338,7 @@ int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStat
     pPanTilt->space = "www.163.com";
     pZoom->x = 10086;
     pZoom->space = "www.163.com";
-    
+
 	struct ns3__PTZVector *pPosition;
 	struct ns3__PTZMoveStatus *pMoveStatus;
     pPosition  = (struct ns3__PTZVector*)soap_malloc(soap,sizeof(struct ns3__PTZVector));
@@ -359,7 +360,7 @@ int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStat
     pPTZStatus->Error = "Sorry! PTZ Error!";
     pPTZStatus->UtcTime = rawtime;
     pPTZStatus->__size = 1;
-    
+
     ns13__GetStatusResponse->PTZStatus = pPTZStatus;
     return SOAP_OK;
 }
@@ -422,7 +423,7 @@ int __ns2__GetProfile(struct soap* soap, struct _ns2__GetProfile *ns2__GetProfil
     memset(pProfile,0,sizeof(struct ns3__Profile));
     pProfile->Name = "Profile 0";
     pProfile->token= "1";
-    
+
     ns2__GetProfileResponse->Profile = pProfile;
     return SOAP_OK;
 }
@@ -448,7 +449,7 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 	pVideoSourcesConfig->SourceToken = "1";
     pVideoSourcesConfig->Bounds = pBounds;
 
-    
+
     // VideoEncoderConfiguration
     struct ns3__VideoResolution *pVideoResolution;
 	pVideoResolution = (struct ns3__VideoResolution *)soap_malloc(soap,sizeof(struct ns3__VideoResolution));
@@ -486,7 +487,7 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 	//char *pszIP = (char *)soap_malloc(soap, 128);
 	//memset(pszIP, 0, 128);
 	//strcpy(pszIP, "0.0.0.0");
-    
+
     struct ns3__IPAddress *pxAddr;
     pxAddr = (struct ns3__IPAddress *)soap_malloc(soap,sizeof(struct ns3__IPAddress));
     memset(pxAddr,0,sizeof(struct ns3__IPAddress));
@@ -496,7 +497,7 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
     pMulticastConfig->Port = 0;
     pMulticastConfig->TTL = 64;
     pMulticastConfig->AutoStart = xsd__boolean__false_;
-    
+
     pVideoEncoderConfig->Multicast = pMulticastConfig;
     pVideoEncoderConfig->SessionTimeout = "PT60S";
     //Target Profile
@@ -656,7 +657,7 @@ int __ns2__GetVideoSourceConfigurationOptions(struct soap* soap, struct _ns2__Ge
     pRange[3]->Max = 240;
     pRange[3]->Min = 200;
     #endif
-    
+
     struct ns3__IntRectangleRange *boundsRange;
     boundsRange = (struct ns3__IntRectangleRange*)soap_malloc(soap,sizeof(struct ns3__IntRectangleRange));
     memset(boundsRange,0,sizeof(struct ns3__IntRectangleRange));
@@ -668,13 +669,13 @@ int __ns2__GetVideoSourceConfigurationOptions(struct soap* soap, struct _ns2__Ge
     char szVideoSourceConfigOption[][6] = {"H264","JPEG","MPEG"};
     char **pVSConfigOption = NULL;
     pVSConfigOption = (char **)szVideoSourceConfigOption;
-    
+
     struct ns3__VideoSourceConfigurationOptions *pVideoSourceConfigOption;
     pVideoSourceConfigOption = (struct ns3__VideoSourceConfigurationOptions*)soap_malloc(soap,sizeof(struct ns3__VideoSourceConfigurationOptions));
     memset(pVideoSourceConfigOption ,0, sizeof(struct ns3__VideoSourceConfigurationOptions));
     pVideoSourceConfigOption->VideoSourceTokensAvailable = pVSConfigOption;
     pVideoSourceConfigOption->BoundsRange = boundsRange;
-    
+
     ns2__GetVideoSourceConfigurationOptionsResponse->Options = pVideoSourceConfigOption;
     return SOAP_OK;
 }
@@ -710,7 +711,7 @@ int __ns2__GetVideoEncoderConfigurationOptions(struct soap* soap, struct _ns2__G
     memset(GovLenRange,0,sizeof(struct ns3__IntRange));
     GovLenRange->Min = 0;
     GovLenRange->Max = 254;
- 
+
     //H264
     struct ns3__H264Options *pH264Options;
     pH264Options = (struct ns3__H264Options *)soap_malloc(soap,sizeof(struct ns3__H264Options));
@@ -747,7 +748,7 @@ int __ns2__GetVideoEncoderConfigurationOptions(struct soap* soap, struct _ns2__G
     memset(pIntRange,0,sizeof(struct ns3__IntRange));
     pIntRange->Min = 0;
     pIntRange->Max = 100;
-        
+
     struct ns3__VideoEncoderConfigurationOptions *pVideoEncoderConfigurationOptions;
     pVideoEncoderConfigurationOptions = (struct ns3__VideoEncoderConfigurationOptions *)soap_malloc(soap,sizeof(struct ns3__VideoEncoderConfigurationOptions));
     memset(pVideoEncoderConfigurationOptions,0,sizeof(struct ns3__VideoEncoderConfigurationOptions));
@@ -790,7 +791,7 @@ int __ns2__GetStreamUri(struct soap* soap, struct _ns2__GetStreamUri *ns2__GetSt
 	pMediaUri->InvalidAfterConnect = xsd__boolean__false_;
 	pMediaUri->InvalidAfterReboot = xsd__boolean__false_;
 	pMediaUri->Timeout = "PT0S";
-	
+
 	ns2__GetStreamUriResponse->MediaUri = pMediaUri;
     return SOAP_OK;
 }
@@ -977,17 +978,17 @@ int __ns8__GetDeviceInformation(struct soap* soap, struct _ns8__GetDeviceInforma
  int  __ns8__SetSystemDateAndTime(struct soap* soap, struct _ns8__SetSystemDateAndTime *ns8__SetSystemDateAndTime, struct _ns8__SetSystemDateAndTimeResponse *ns8__SetSystemDateAndTimeResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
 int __ns8__GetSystemDateAndTime(
-        struct soap* soap, 
-        struct _ns8__GetSystemDateAndTime *ns8__GetSystemDateAndTime, 
+        struct soap* soap,
+        struct _ns8__GetSystemDateAndTime *ns8__GetSystemDateAndTime,
         struct _ns8__GetSystemDateAndTimeResponse *ns8__GetSystemDateAndTimeResponse)
 {
     printf("%s\n",__FUNCTION__);
-    time_t rawtime; 
-    struct tm *timeinfo; 
-    time(&rawtime); 
+    time_t rawtime;
+    struct tm *timeinfo;
+    time(&rawtime);
     timeinfo = localtime(&rawtime);
 
-    struct ns3__Time *mytime; 
+    struct ns3__Time *mytime;
 	struct ns3__Date *mydate;
     struct ns3__DateTime *datetime;
     mytime = (struct ns3__Time*)soap_malloc(soap,sizeof(struct ns3__Time));
@@ -996,7 +997,7 @@ int __ns8__GetSystemDateAndTime(
     memset(mytime,0,sizeof(struct ns3__Time));
     memset(mydate,0,sizeof(struct ns3__Date));
     memset(datetime,0,sizeof(struct ns3__DateTime));
-    
+
     mytime->Hour = timeinfo->tm_hour;
     mytime->Minute = timeinfo->tm_min;
     mytime->Second = timeinfo->tm_sec;
@@ -1012,7 +1013,7 @@ int __ns8__GetSystemDateAndTime(
     systemdateAndtime->DateTimeType = ns3__SetDateTimeType__Manual;
     systemdateAndtime->DaylightSavings = xsd__boolean__true_;
     systemdateAndtime->LocalDateTime = datetime;
-    
+
 	ns8__GetSystemDateAndTimeResponse->SystemDateAndTime = systemdateAndtime;
 	return SOAP_OK;
 }
@@ -1110,7 +1111,7 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
     memset(pHostnameInfo,0,sizeof(struct ns3__HostnameInformation));
 	pHostnameInfo->FromDHCP = xsd__boolean__false_;
 	pHostnameInfo->Name = "HUNDA";
-    
+
 	ns8__GetHostnameResponse->HostnameInformation = pHostnameInfo;
     return SOAP_OK;
 }
@@ -1127,9 +1128,69 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 
  int  __ns8__GetDynamicDNS(struct soap* soap, struct _ns8__GetDynamicDNS *ns8__GetDynamicDNS, struct _ns8__GetDynamicDNSResponse *ns8__GetDynamicDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns8__SetDynamicDNS(struct soap* soap, struct _ns8__SetDynamicDNS *ns8__SetDynamicDNS, struct _ns8__SetDynamicDNSResponse *ns8__SetDynamicDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int __ns8__SetDynamicDNS(struct soap* soap,
+		struct _ns8__SetDynamicDNS *ns8__SetDynamicDNS,
+		struct _ns8__SetDynamicDNSResponse *ns8__SetDynamicDNSResponse) {
+	printf("%s\n", __FUNCTION__);
+	return SOAP_OK;
+}
 
- int  __ns8__GetNetworkInterfaces(struct soap* soap, struct _ns8__GetNetworkInterfaces *ns8__GetNetworkInterfaces, struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+void get_macaddress() {
+	int fd;
+	struct ifreq ifr;
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	ifr.ifr_addr.sa_family = AF_INET;
+	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ - 1);
+	ioctl(fd, SIOCGIFHWADDR, &ifr);
+	/* display result */
+	printf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[0],
+			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[1],
+			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[2],
+			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[3],
+			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[4],
+			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[5]);
+	close(fd);
+}
+
+
+struct ns3__NetworkInterfaceInfo * ns3__GetNetworkInterfaceInfo(struct soap* soap)
+{
+	struct ns3__NetworkInterfaceInfo *info = (struct ns3__NetworkInterfaceInfo*)soap_malloc(soap,sizeof(struct ns3__NetworkInterfaceInfo));
+	memset(info,0,sizeof(struct ns3__NetworkInterfaceInfo));
+	info->HwAddress = "1234566";
+	return info;
+}
+
+
+struct ns3__NetworkInterface *__ns3__GetNetworkInterfaces(struct soap* soap)
+{
+	struct ns3__NetworkInterface *NetworkInterfaces = (struct ns3__NetworkInterface*)soap_malloc(soap,sizeof(struct ns3__NetworkInterface));
+	memset(NetworkInterfaces,0,sizeof(struct ns3__NetworkInterface));
+	NetworkInterfaces->Info = ns3__GetNetworkInterfaceInfo(soap);
+	return NetworkInterfaces;
+}
+
+ int __ns8__GetNetworkInterfaces(
+		struct soap* soap,
+		struct _ns8__GetNetworkInterfaces *ns8__GetNetworkInterfaces,
+		struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse) {
+	printf("%s\n", __FUNCTION__);
+
+	//ns8__GetNetworkInterfacesResponse->NetworkInterfaces = __ns3__GetNetworkInterfaces(soap);
+	//ns8__GetNetworkInterfacesResponse->__sizeNetworkInterfaces = 10;
+	struct ns3__NetworkInterface *NetworkInterfaces = (struct ns3__NetworkInterface*)soap_malloc(soap,sizeof(struct ns3__NetworkInterface));
+	memset(NetworkInterfaces,0,sizeof(struct ns3__NetworkInterface));
+	struct ns3__NetworkInterfaceInfo *Info = (struct ns3__NetworkInterfaceInfo*)soap_malloc(soap,sizeof(struct ns3__NetworkInterfaceInfo));
+	memset(Info,0,sizeof(struct ns3__NetworkInterfaceInfo));
+    Info->HwAddress = "abcdefg";
+    int a = 10;
+    NetworkInterfaces->Info = Info;
+    ns8__GetNetworkInterfacesResponse->NetworkInterfaces = NetworkInterfaces;
+    ns8__GetNetworkInterfacesResponse-> __sizeNetworkInterfaces = 1;
+
+	return SOAP_OK;
+}
 
  int  __ns8__SetNetworkInterfaces(struct soap* soap, struct _ns8__SetNetworkInterfaces *ns8__SetNetworkInterfaces, struct _ns8__SetNetworkInterfacesResponse *ns8__SetNetworkInterfacesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
