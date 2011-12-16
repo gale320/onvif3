@@ -1,8 +1,24 @@
+
+#include "jsonc.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
 #include "Binding.nsmap"
+
+
+
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+
+
+#include <sys/mman.h>
+#include <fcntl.h>
+
+#include <sys/stat.h>
+
 
 #include <errno.h>
 #include <netdb.h>
@@ -12,9 +28,13 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 
+
 #define AUTO_URI_FLAG 1
 #define RTSP_URI_XADDR "rtsp://192.168.1.248/stream1"
 #define MAXINTERFACES 16
+
+
+
 
 char *GetLocalHostIP()
 {
@@ -1135,7 +1155,7 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 	return SOAP_OK;
 }
 
-void get_macaddress() {
+char *get_macaddress() {
 	int fd;
 	struct ifreq ifr;
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -1150,7 +1170,15 @@ void get_macaddress() {
 			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[3],
 			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[4],
 			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[5]);
+	char a[18];
+	int test = 0xab;
+
+
+	sprintf(a, "%x\n", test );
 	close(fd);
+
+
+	return "10086";
 }
 
 
@@ -1158,7 +1186,7 @@ struct ns3__NetworkInterfaceInfo * ns3__GetNetworkInterfaceInfo(struct soap* soa
 {
 	struct ns3__NetworkInterfaceInfo *info = (struct ns3__NetworkInterfaceInfo*)soap_malloc(soap,sizeof(struct ns3__NetworkInterfaceInfo));
 	memset(info,0,sizeof(struct ns3__NetworkInterfaceInfo));
-	info->HwAddress = "1234566";
+	info->HwAddress = get_macaddress();
 	return info;
 }
 
@@ -1171,28 +1199,24 @@ struct ns3__NetworkInterface *__ns3__GetNetworkInterfaces(struct soap* soap)
 	return NetworkInterfaces;
 }
 
+
  int __ns8__GetNetworkInterfaces(
 		struct soap* soap,
 		struct _ns8__GetNetworkInterfaces *ns8__GetNetworkInterfaces,
 		struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse) {
 	printf("%s\n", __FUNCTION__);
 
-	//ns8__GetNetworkInterfacesResponse->NetworkInterfaces = __ns3__GetNetworkInterfaces(soap);
-	//ns8__GetNetworkInterfacesResponse->__sizeNetworkInterfaces = 10;
-	struct ns3__NetworkInterface *NetworkInterfaces = (struct ns3__NetworkInterface*)soap_malloc(soap,sizeof(struct ns3__NetworkInterface));
-	memset(NetworkInterfaces,0,sizeof(struct ns3__NetworkInterface));
-	struct ns3__NetworkInterfaceInfo *Info = (struct ns3__NetworkInterfaceInfo*)soap_malloc(soap,sizeof(struct ns3__NetworkInterfaceInfo));
-	memset(Info,0,sizeof(struct ns3__NetworkInterfaceInfo));
-    Info->HwAddress = "abcdefg";
-    int a = 10;
-    NetworkInterfaces->Info = Info;
-    ns8__GetNetworkInterfacesResponse->NetworkInterfaces = NetworkInterfaces;
-    ns8__GetNetworkInterfacesResponse-> __sizeNetworkInterfaces = 1;
+	json_return *back = get_val("foo->age");
+	dele_json_backs(back);
+	set_json_val("Age", "lgh");
 
-	return SOAP_OK;
+	ns8__GetNetworkInterfacesResponse->NetworkInterfaces =
+			__ns3__GetNetworkInterfaces(soap);
+	ns8__GetNetworkInterfacesResponse->__sizeNetworkInterfaces = 1;
+    return SOAP_OK;
 }
 
- int  __ns8__SetNetworkInterfaces(struct soap* soap, struct _ns8__SetNetworkInterfaces *ns8__SetNetworkInterfaces, struct _ns8__SetNetworkInterfacesResponse *ns8__SetNetworkInterfacesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int  __ns8__SetNetworkInterfaces(struct soap* soap, struct _ns8__SetNetworkInterfaces *ns8__SetNetworkInterfaces, struct _ns8__SetNetworkInterfacesResponse *ns8__csSetNetworkInterfacesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
  int  __ns8__GetNetworkProtocols(struct soap* soap, struct _ns8__GetNetworkProtocols *ns8__GetNetworkProtocols, struct _ns8__GetNetworkProtocolsResponse *ns8__GetNetworkProtocolsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 

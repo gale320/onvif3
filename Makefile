@@ -23,12 +23,12 @@ ar = $(AMBA_MAKEFILE_V)$(CROSS_COMPILE)ar
 GSOAP_ROOT=../gsoap-2.8/gsoap
 WSNAME = onvif
 INCLUDE = -I/usr/local/include/ -I../gsoap-2.8/gsoap/import -I../gsoap-2.8/gsoap
-SERVER_OBJS = onvif.o onvifC.o stdsoap2.o onvifServer.o wsserver.o -lpthread
+SERVER_OBJS = onvif.o onvifC.o stdsoap2.o onvifServer.o wsserver.o jsonc.o  -lpthread
 
 all: server
 
 server: $(SERVER_OBJS)
-	$(CC) $(INCLUDE) $(UNIT_TEST_CFLAG) -o $(WSNAME)server $(SERVER_OBJS)
+	$(CC) $(INCLUDE) $(UNIT_TEST_CFLAG) -o $(WSNAME)server $(SERVER_OBJS) libjsonc.so
 
 stdsoap2.o:$(GSOAP_ROOT)/stdsoap2.c
 	$(CC) -c $(UNIT_TEST_CFLAG) $? $(INCLUDE)
