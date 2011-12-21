@@ -1,45 +1,63 @@
-
-#include "jsonc.h"
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
 #include "Binding.nsmap"
 
-
-
-#include <sys/ipc.h>
-#include <sys/msg.h>
-#include <unistd.h>
-
-
-#include <sys/mman.h>
-#include <fcntl.h>
-
-#include <sys/stat.h>
-
-
-#include <errno.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
+#include <errno.h> 
+#include <netdb.h> 
+#include <sys/types.h> 
+#include <netinet/in.h> 
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include <sys/fcntl.h>
+
+typedef struct ONVIF_FIFO_Comand_s 
+{
+	unsigned char Cmdhead;
+	unsigned char Cmd_ver;
+	unsigned char Cmd_ID;
+	unsigned char Cmd_Para[12];
+	unsigned char Cmd_check_sum;
+}	ONVIF_FIFO_Comand_t;
 
 
-#define AUTO_URI_FLAG 1
-#define RTSP_URI_XADDR "rtsp://192.168.1.248/stream1"
-#define MAXINTERFACES 16
+/**************************************************************
+º¯Êý¹¦ÄÜ£º´´½¨Í¨Ñ¶FIFO²¢³õÊ¼»¯
+FiFoInit()µÄÄÚ²¿×Óº¯Êý
+²ÎÊý£º
+(Èë¿Ú)
+const char *fifopath  ´´½¨fifoµÄÏµÍ³Â·¾¶
+int *fifofd           FIFO ÃèÊö·û
+(³ö¿Ú)ÎÞ
+·µ»Ø£º(int)  1,³É¹¦; -1,Ê§°Ü
 
+°üº¬Í·ÎÄ¼þ£º <unistd.h> <sys/types.h> <sys/stat.h> <fcntl.h>
+Ö÷ÒªË¼Â·£º
+µ÷ÓÃ·½·¨: FiFoInit()µ÷ÓÃ
 
+´´½¨ÈÕÆÚ:2007/7/13
+****************************************************************/
+int SingleFifoinit(const char *fifopath, int *fifofd, int nMode)
+{
+    if(-1 == access(fifopath,F_OK))
+    {
+		mkfifo(fifopath, nMode);
+		printf("FiFo : %-50s has created!\n",fifopath);
+    }
 
+    *fifofd = open(fifopath, nMode|O_NONBLOCK);
+
+    printf("Enabling FiFo : %-50s[ %s ]\n",fifopath,(*fifofd)<0?"Failed":"OK");
+
+    if(0>*fifofd)return -1;
+
+    return 1;
+}
 
 char *GetLocalHostIP()
-{
+{  
     char *ip=NULL;
     int fd;
     struct ifreq ifr; ///if.h
@@ -48,46 +66,46 @@ char *GetLocalHostIP()
     if ((fd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) //socket.h
     {
     	memset(&ifr, 0, sizeof(ifr));
-
+    	
     	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ - 1);
-
+    	
     	if(ioctl(fd, SIOCGIFADDR, &ifr) == -1) {
     		perror("ioctl error");
     	}
-
+    	
     	addr = (struct sockaddr_in *)&(ifr.ifr_addr);
     	ip = inet_ntoa(addr->sin_addr);
-
+      
       close (fd);
     }
-
+    
     return ip;
 }
 
 static int SetIPConf(const char *pszIP, const char *pszMask, const char *pszGateway)
 {
 	int fd = 0;
-
+	
 	fd = open("/etc/network/interfaces", O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP);
 	if(fd < 0){
 		perror("open file:");
 		return -1;
 	}
-
+	
 	char szBuf[1024] = {0};
-
-	snprintf(szBuf, sizeof(szBuf), "# Configure Loopback\nauto lo\niface lo inet loopback\n\n\nauto eth0\niface eth0 inet static\naddress %s\nnetmask %s\ngateway %s\n",pszIP, pszMask, pszGateway);
+	
+	snprintf(szBuf, sizeof(szBuf), "# Configure Loopback\nauto lo\niface lo inet loopback\n\n\nauto eth0\niface eth0 inet static\naddress %s\nnetmask %s\ngateway %s\n",pszIP, pszMask, pszGateway);				
 	int nBufLen = 0;
 	int nRet = 0;
-
+	
 	nBufLen = strlen(szBuf);
-
+	
 	nRet = write(fd, szBuf, nBufLen);
 	if (nBufLen != nRet) {
 		perror("write ip interfaces failed:");
 		return -2;
 	}
-
+	
 	close(fd);
 	return 0;
 }
@@ -95,7 +113,14 @@ static int SetIPConf(const char *pszIP, const char *pszMask, const char *pszGate
 
 int __ns1__GetServiceCapabilities(struct soap* soap, struct _ns1__GetServiceCapabilities *ns1__GetServiceCapabilities, struct _ns1__GetServiceCapabilitiesResponse *ns1__GetServiceCapabilitiesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
-int __ns1__GetAudioSources(struct soap* soap, struct _ns2__GetAudioSources *ns2__GetAudioSources, struct _ns2__GetAudioSourcesResponse *ns2__GetAudioSourcesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int __ns1__GetAudioSources(struct soap* soap, struct _ns2__GetAudioSources *ns2__GetAudioSources, struct _ns2__GetAudioSourcesResponse *ns2__GetAudioSourcesResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+	return soap_receiver_fault_subcode(soap, "ter:ActionNotSupported", "AudioOutputNotSupported", NULL);
+	
+	return SOAP_OK;
+}
 
 int __ns1__GetAudioOutputs(struct soap* soap, struct _ns2__GetAudioOutputs *ns2__GetAudioOutputs, struct _ns2__GetAudioOutputsResponse *ns2__GetAudioOutputsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -155,7 +180,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
 {
     printf("%s\n",__FUNCTION__);
     float a10086 = 0.0;
-
+    
     struct ns3__BacklightCompensation20* pBacklightCompensation;
     struct ns3__Exposure20* pExposure;
     struct ns3__FocusConfiguration20* pFocusConfiguration;
@@ -167,19 +192,19 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pFocusConfiguration = (struct ns3__FocusConfiguration20*)soap_malloc(soap,sizeof(struct ns3__FocusConfiguration20));
     pIrCutFilter = (enum ns3__IrCutFilterMode*)soap_malloc(soap,sizeof(enum ns3__IrCutFilterMode));
     pWhiteBalance = (struct ns3__WhiteBalance20*)soap_malloc(soap,sizeof(struct ns3__WhiteBalance20));
-    pWideDynamicRange = (struct ns3__WideDynamicRange20*)soap_malloc(soap,sizeof(struct ns3__WideDynamicRange20));
+    pWideDynamicRange = (struct ns3__WideDynamicRange20*)soap_malloc(soap,sizeof(struct ns3__WideDynamicRange20));    
     memset(pBacklightCompensation,0,sizeof(struct ns3__BacklightCompensation20));
     memset(pExposure,0,sizeof(struct ns3__Exposure20));
-    memset(pFocusConfiguration,0,sizeof(struct ns3__FocusConfiguration20));
+    memset(pFocusConfiguration,0,sizeof(struct ns3__FocusConfiguration20)); 
     memset(pIrCutFilter,0,sizeof(enum ns3__IrCutFilterMode));
     memset(pWhiteBalance,0,sizeof(struct ns3__WhiteBalance20));
     memset(pWideDynamicRange,0,sizeof(struct ns3__WideDynamicRange20));
 
-    //ï¿½ï¿½ï¿½â²¹ï¿½ï¿½
+    //±³¹â²¹³¥
     pBacklightCompensation->Mode = ns3__BacklightCompensationMode__OFF;
     pBacklightCompensation->Level= &a10086;//0
 
-    //ï¿½Ø¹ï¿½Ê±ï¿½ï¿½
+    //ÆØ¹âÊ±¼ä
     pExposure->Mode = ns3__ExposureMode__AUTO;
     #if 0
     struct ns3__Rectangle *pWindow;
@@ -193,7 +218,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pPriority= (enum ns3__ExposurePriority*)soap_malloc(soap,sizeof(enum ns3__ExposurePriority));
     memset(pPriority,0,sizeof(enum ns3__ExposurePriority));
     *pPriority = ns3__ExposurePriority__FrameRate;
-
+    
     pExposure->Priority = pPriority;
     pExposure->Window = pWindow;
     pExposure->MaxExposureTime = &a10086;
@@ -207,7 +232,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pExposure->ExposureTime = &a10086;
     #endif
 
-    //ï¿½Û½ï¿½
+    //¾Û½¹
     pFocusConfiguration->AutoFocusMode = ns3__AutoFocusMode__MANUAL;
     #if 0
     pFocusConfiguration->DefaultSpeed = &a10086;
@@ -216,14 +241,14 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     #endif
     //ircut filter
     *pIrCutFilter = ns3__IrCutFilterMode__AUTO;
-    //ï¿½ï¿½Æ½ï¿½ï¿½
+    //°×Æ½ºâ
     pWhiteBalance->Mode = ns3__WhiteBalanceMode__AUTO;
     //pWhiteBalance->CrGain = &a10086;
     //pWhiteBalance->CbGain = &a10086;
-    //ï¿½?Ì¬ï¿½ï¿½ï¿½
+    //¿í¶¯Ì¬·ù¶È
     pWideDynamicRange->Mode = ns3__WideDynamicMode__ON;
     pWideDynamicRange->Level= &a10086;//0
-
+    
     struct ns3__ImagingSettings20* pImagingSettings20;
     pImagingSettings20 = (struct ns3__ImagingSettings20*)soap_malloc(soap,sizeof(struct ns3__ImagingSettings20));
     memset(pImagingSettings20,0,sizeof(struct ns3__ImagingSettings20));
@@ -237,7 +262,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pImagingSettings20->IrCutFilter = pIrCutFilter;
     pImagingSettings20->WhiteBalance = pWhiteBalance;
     pImagingSettings20->WideDynamicRange = pWideDynamicRange;
-
+    
     ns12__GetImagingSettingsResponse->ImagingSettings = pImagingSettings20;
     return SOAP_OK;
 }
@@ -245,14 +270,14 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
 int __ns12__SetImagingSettings(struct soap* soap, struct _ns12__SetImagingSettings *ns12__SetImagingSettings, struct _ns12__SetImagingSettingsResponse *ns12__SetImagingSettingsResponse)
 {
     printf("%s\n",__FUNCTION__);
-
+    
     return SOAP_OK;
 }
 
 int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOptions, struct _ns12__GetOptionsResponse *ns12__GetOptionsResponse)
 {
     printf("%s\n",__FUNCTION__);
-
+    
     struct ns3__ImagingOptions20* pImagingOptions;
     pImagingOptions = (struct ns3__ImagingOptions20*)soap_malloc(soap,sizeof(struct ns3__ImagingOptions20));
     memset(pImagingOptions,0,sizeof(struct ns3__ImagingOptions20));
@@ -267,7 +292,7 @@ int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOpt
     pImagingOptions->Sharpness;
     pImagingOptions->WideDynamicRange;
     pImagingOptions->WhiteBalance;
-
+    
     ns12__GetOptionsResponse->ImagingOptions = pImagingOptions;
     return SOAP_OK;
 }
@@ -296,14 +321,14 @@ int __ns12__GetMoveOptions(struct soap* soap, struct _ns12__GetMoveOptions *ns12
     pAPosition->Max = 10086;
     pASpeed->Max = 10086;
     pASpeed->Min = 10086;
-
+    
     pCSpeed->Max = 10086;
     pCSpeed->Min = 10086;
 
     pRDistance->Max = 10086;
     pRDistance->Min = 10086;
     pRSpeed->Max = 10086;
-    pRSpeed->Min = 10086;
+    pRSpeed->Min = 10086;	
 
     struct ns3__AbsoluteFocusOptions *pAbsolute;
 	struct ns3__ContinuousFocusOptions *pContinuous;
@@ -319,25 +344,141 @@ int __ns12__GetMoveOptions(struct soap* soap, struct _ns12__GetMoveOptions *ns12
     pContinuous->Speed  = pCSpeed;
     pRelative->Distance = pRDistance;
     pRelative->Speed    = pRSpeed;
-
+    
     struct ns3__MoveOptions20* pMoveOptions;
     pMoveOptions = (struct ns3__MoveOptions20*)soap_malloc(soap,sizeof(struct ns3__MoveOptions20));
     memset(pMoveOptions,0,sizeof(struct ns3__MoveOptions20));
     pMoveOptions->Absolute  = pAbsolute;
     pMoveOptions->Continuous= pContinuous;
     pMoveOptions->Relative  = pRelative;
-
+    
     ns12__GetMoveOptionsResponse->MoveOptions = pMoveOptions;
     return SOAP_OK;
 }
 
 int __ns13__GetServiceCapabilities(struct soap* soap, struct _ns13__GetServiceCapabilities *ns13__GetServiceCapabilities, struct _ns13__GetServiceCapabilitiesResponse *ns13__GetServiceCapabilitiesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
-int __ns13__GetConfigurations(struct soap* soap, struct _ns13__GetConfigurations *ns13__GetConfigurations, struct _ns13__GetConfigurationsResponse *ns13__GetConfigurationsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+
+// Get PTZ Configuration
+// nNodeId: 0 -- All nodes; others -- the id node
+// pnNodeCount: out, save the get nodes counts
+int GetPTZConfiguration(struct soap* soap, int nNodeId, int *pnNodeCount, struct ns3__PTZConfiguration **pszPTZConfNode)
+{
+		if (0 == nNodeId) {
+			*pnNodeCount = 1;
+		}
+		else {
+			*pnNodeCount = 1;
+		}
+	  
+    // PTZ config
+    struct ns3__PTZConfiguration *pszPTZConf = NULL;
+    pszPTZConf = (struct ns3__PTZConfiguration *)soap_malloc(soap, sizeof(struct ns3__PTZConfiguration));
+    if (NULL == pszPTZConf) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszPTZConf, 0, sizeof(struct ns3__PTZConfiguration));
+    
+    // Name
+    char *pszName = NULL;
+    pszName = (char *)soap_malloc(soap, 64*sizeof(char));
+    if (NULL == pszName) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszName, 0, 64);
+    snprintf(pszName, 64, "PTZConfig 0");
+    pszPTZConf->Name = pszName;
+    
+    // Use Count
+    pszPTZConf->UseCount = 1;
+    
+    // Token
+    char *pszToken = NULL;
+    pszToken = (char *)soap_malloc(soap, 64*sizeof(char));
+    if (NULL == pszToken) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszToken, 0, 64);
+    snprintf(pszToken, 64, "1");
+    pszPTZConf->token = pszToken;
+    
+    //PTZ Node Token
+    char *pszNodeToken = NULL;
+    pszNodeToken = (char *)soap_malloc(soap, 64*sizeof(char));
+    if (NULL == pszNodeToken) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszNodeToken, 0, 64*sizeof(char));
+    snprintf(pszNodeToken, 64,  "1");
+    pszPTZConf->NodeToken = pszNodeToken;
+    
+    // DefaultContinuousPanTiltVelocitySpace 
+    char *pszDefaultPTSpace = NULL;
+    pszDefaultPTSpace = (char *)soap_malloc(soap, 128*sizeof(char));
+    if (NULL == pszDefaultPTSpace) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszDefaultPTSpace, 0, 128*sizeof(char));
+    snprintf(pszDefaultPTSpace, 128, "http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocityGenericSpace");
+   	pszPTZConf->DefaultContinuousPanTiltVelocitySpace = pszDefaultPTSpace;
+   	
+   	// DefaultContinuousZoomVelocitySpace
+   	char *pszDefaultZoomSpace = NULL;
+    pszDefaultZoomSpace = (char *)soap_malloc(soap, 128*sizeof(char));
+    if (NULL == pszDefaultZoomSpace) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszDefaultZoomSpace, 0, 128*sizeof(char));
+    snprintf(pszDefaultZoomSpace, 128, "http://www.onvif.org/ver10/tptz/ZoomSpaces/VelocityGenericSpace");
+   	pszPTZConf->DefaultContinuousZoomVelocitySpace = pszDefaultZoomSpace;
+   	
+   	// DefaultPTZTimeout 
+   	char *pszDefaultPTZTimeout = NULL;
+    pszDefaultPTZTimeout = (char *)soap_malloc(soap, 32*sizeof(char));
+    if (NULL == pszDefaultPTZTimeout) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszDefaultPTZTimeout, 0, 32*sizeof(char));
+    snprintf(pszDefaultPTZTimeout, 32, "10");
+   	pszPTZConf->DefaultPTZTimeout = pszDefaultPTZTimeout;
+   	// @ }
+   	
+   	*pszPTZConfNode = pszPTZConf;
+   	
+   	return SOAP_OK;
+}
+
+int __ns13__GetConfigurations(struct soap* soap, struct _ns13__GetConfigurations *ns13__GetConfigurations, struct _ns13__GetConfigurationsResponse *ns13__GetConfigurationsResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+	int nRet = SOAP_OK;
+	
+	// Get All PTZ Configuration
+	nRet = GetPTZConfiguration(soap, 0, &(ns13__GetConfigurationsResponse->__sizePTZConfiguration), &(ns13__GetConfigurationsResponse->PTZConfiguration));
+	if (SOAP_OK != nRet) {
+		printf("Get PTZ Configurations failed.\n");
+	}
+ 	
+ 	printf("size PTZ Configurations: %d\n Addr: %x\n", ns13__GetConfigurationsResponse->__sizePTZConfiguration, ns13__GetConfigurationsResponse->PTZConfiguration);
+	
+	return SOAP_OK;
+}
 
 int __ns13__GetPresets(struct soap* soap, struct _ns13__GetPresets *ns13__GetPresets, struct _ns13__GetPresetsResponse *ns13__GetPresetsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns13__SetPreset(struct soap* soap, struct _ns13__SetPreset *ns13__SetPreset, struct _ns13__SetPresetResponse *ns13__SetPresetResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int  __ns13__SetPreset(struct soap* soap, struct _ns13__SetPreset *ns13__SetPreset, struct _ns13__SetPresetResponse *ns13__SetPresetResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	return SOAP_OK;
+}
 
  int  __ns13__RemovePreset(struct soap* soap, struct _ns13__RemovePreset *ns13__RemovePreset, struct _ns13__RemovePresetResponse *ns13__RemovePresetResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -346,11 +487,11 @@ int __ns13__GetPresets(struct soap* soap, struct _ns13__GetPresets *ns13__GetPre
 int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStatus, struct _ns13__GetStatusResponse *ns13__GetStatusResponse)
 {
     printf("%s\n",__FUNCTION__);
-    time_t rawtime;
-    time(&rawtime);
-
+    time_t rawtime; 
+    time(&rawtime); 
+    /*
     struct ns3__Vector2D *pPanTilt;
-	struct ns3__Vector1D *pZoom;
+	  struct ns3__Vector1D *pZoom;
     pPanTilt= (struct ns3__Vector2D*)soap_malloc(soap,sizeof(struct ns3__Vector2D));
     pZoom= (struct ns3__Vector1D*)soap_malloc(soap,sizeof(struct ns3__Vector1D));
     memset(pPanTilt,0,sizeof(struct ns3__Vector2D));
@@ -360,48 +501,472 @@ int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStat
     pPanTilt->space = "www.163.com";
     pZoom->x = 10086;
     pZoom->space = "www.163.com";
-
-	struct ns3__PTZVector *pPosition;
-	struct ns3__PTZMoveStatus *pMoveStatus;
+    
+	  struct ns3__PTZVector *pPosition;
     pPosition  = (struct ns3__PTZVector*)soap_malloc(soap,sizeof(struct ns3__PTZVector));
-    pMoveStatus= (struct ns3__PTZMoveStatus*)soap_malloc(soap,sizeof(struct ns3__PTZMoveStatus));
     memset(pPosition,0,sizeof(struct ns3__PTZVector));
-    memset(pMoveStatus,0,sizeof(struct ns3__PTZMoveStatus));
     pPosition->PanTilt= pPanTilt;
     pPosition->Zoom   = pZoom;
-    pMoveStatus->PanTilt= (enum ns3__MoveStatus*)soap_malloc(soap,sizeof(enum ns3__MoveStatus));
-    pMoveStatus->Zoom   = (enum ns3__MoveStatus*)soap_malloc(soap,sizeof(enum ns3__MoveStatus));
-    *pMoveStatus->PanTilt= ns3__MoveStatus__MOVING;
-    *pMoveStatus->Zoom   = ns3__MoveStatus__MOVING;
+    */
+    struct ns3__PTZMoveStatus *pMoveStatus;
+    pMoveStatus= (struct ns3__PTZMoveStatus*)soap_malloc(soap,sizeof(struct ns3__PTZMoveStatus));
+    memset(pMoveStatus,0,sizeof(struct ns3__PTZMoveStatus));
+    
+    pMoveStatus->PanTilt    = (enum ns3__MoveStatus*)soap_malloc(soap,sizeof(enum ns3__MoveStatus));
+    pMoveStatus->Zoom       = (enum ns3__MoveStatus*)soap_malloc(soap,sizeof(enum ns3__MoveStatus));
+    *(pMoveStatus->PanTilt) = ns3__MoveStatus__IDLE;
+    *(pMoveStatus->Zoom)    = ns3__MoveStatus__IDLE;
 
     struct ns3__PTZStatus* pPTZStatus;
     pPTZStatus = (struct ns3__PTZStatus*)soap_malloc(soap,sizeof(struct ns3__PTZStatus));
     memset(pPTZStatus,0,sizeof(struct ns3__PTZStatus));
-    pPTZStatus->Position = pPosition;
+    
+    // No support absolute position
+    pPTZStatus->Position = NULL;
     pPTZStatus->MoveStatus = pMoveStatus;
-    pPTZStatus->Error = "Sorry! PTZ Error!";
+    pPTZStatus->Error = "No Error";
     pPTZStatus->UtcTime = rawtime;
     pPTZStatus->__size = 1;
-
+    
     ns13__GetStatusResponse->PTZStatus = pPTZStatus;
     return SOAP_OK;
 }
 
- int  __ns13__GetConfiguration(struct soap* soap, struct _ns13__GetConfiguration *ns13__GetConfiguration, struct _ns13__GetConfigurationResponse *ns13__GetConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int  __ns13__GetConfiguration(struct soap* soap, struct _ns13__GetConfiguration *ns13__GetConfiguration, struct _ns13__GetConfigurationResponse *ns13__GetConfigurationResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+	int nRet = SOAP_OK;
+	int nNodeId = 0;
+	int nNodeCount = 0;
+	
+	nNodeId = atoi(ns13__GetConfiguration->PTZConfigurationToken);
+	printf("PTZConfigurationToken: %s\n", ns13__GetConfiguration->PTZConfigurationToken);
+	
+	// Get PTZ Node
+	nRet = GetPTZConfiguration(soap, nNodeId, &nNodeCount, &(ns13__GetConfigurationResponse->PTZConfiguration));
+	if (SOAP_OK != nRet) {
+		printf("Get PTZ Configuration %d failed.\n", nNodeId);
+	}
+	
+	return SOAP_OK;
+}
 
- int  __ns13__GetNodes(struct soap* soap, struct _ns13__GetNodes *ns13__GetNodes, struct _ns13__GetNodesResponse *ns13__GetNodesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+// Get PTZ Node
+// nNodeId: 0 -- All nodes; others -- the id node
+// pnNodeCount: out, save the get nodes counts
+int GetPTZNode(struct soap* soap, int nNodeId, int *pnNodeCount, struct ns3__PTZNode **pszNode)
+{
+	// 0 : is all nodes
+	// else, get the id node
+	if (0 == nNodeId) {
+		*pnNodeCount = 1;
+	}
+	else {
+		*pnNodeCount = 1;
+	}
+	
+	struct ns3__PTZNode *pszPTZNode = NULL;
+	
+	pszPTZNode = (struct ns3__PTZNode *)soap_malloc(soap, sizeof(struct ns3__PTZNode));
+ 	if (NULL == pszPTZNode) {
+ 		// Out of memory
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszPTZNode, 0, sizeof(struct ns3__PTZNode));
+ 	
+ 	// Token
+ 	char *pszToken = NULL;
+ 	
+ 	pszToken = (char *)soap_malloc(soap, 64);
+ 	if (NULL == pszToken) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszToken, 0, 64);
+ 	snprintf(pszToken, 64, "1");
+ 	pszPTZNode->token = pszToken;
+ 	
+ 	// Name
+ 	char *pszName = NULL;
+ 	
+  pszName = (char *)soap_malloc(soap, 64);
+ 	if (NULL == pszName) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszName, 0, 64);
+ 	snprintf(pszName, 64, "PTZ Node 0");
+ 	pszPTZNode->Name = pszName;
+ 	
+ 	// SupportedPTZSpaces
+ 	struct ns3__PTZSpaces *pszPTZSpace = NULL;
+ 	
+ 	pszPTZSpace = (struct ns3__PTZSpaces *)soap_malloc(soap, sizeof(struct ns3__PTZSpaces));
+ 	if (NULL == pszPTZSpace) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszPTZSpace, 0, sizeof(struct ns3__PTZSpaces));
+ 	
+ 	 	// @ {
+ 	// ContinuousPanTiltVelocitySpace
+ 	pszPTZSpace->__sizeContinuousPanTiltVelocitySpace = 1;
+ 	
+ 	struct ns3__Space2DDescription *pszSpace2DDesc = NULL;
+ 	pszSpace2DDesc = (struct ns3__Space2DDescription *)soap_malloc(soap, sizeof(struct ns3__Space2DDescription));
+ 	if (NULL == pszSpace2DDesc) {
+ 		// Out of memory
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszSpace2DDesc, 0, sizeof(struct ns3__Space2DDescription));
+ 	
+ 	// URI
+ 	char *pszURI = NULL;
+ 	pszURI = (char *)soap_malloc(soap, 128);
+ 	if (NULL == pszURI) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszURI, 0, 128);
+ 	snprintf(pszURI, 128, "http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocityGenericSpace");
+ 	pszSpace2DDesc->URI = pszURI;
+ 	// XRange
+ 	struct ns3__FloatRange *pszXRange = NULL;
+ 	pszXRange = (struct ns3__FloatRange *)soap_malloc(soap, sizeof(struct ns3__FloatRange));
+ 	if (NULL == pszXRange) {
+ 		return SOAP_EOM;
+ 	}
+ 	pszXRange->Min = -1.0;
+ 	pszXRange->Max = 1.0;
+ 	pszSpace2DDesc->XRange = pszXRange;
+ 	// YRange
+ 	struct ns3__FloatRange *pszYRange = NULL;
+ 	pszYRange = (struct ns3__FloatRange *)soap_malloc(soap, sizeof(struct ns3__FloatRange));
+ 	if (NULL == pszYRange) {
+ 		return SOAP_EOM;
+ 	}
+ 	pszYRange->Min = -1.0;
+ 	pszYRange->Max = 1.0;
+ 	pszSpace2DDesc->YRange = pszYRange;
+ 	
+ 	pszPTZSpace->ContinuousPanTiltVelocitySpace = pszSpace2DDesc;
+ 	// @ }
+ 	
+ 	// @ {
+ 	// ContinuousZoomVelocitySpace
+ 	pszPTZSpace->__sizeContinuousZoomVelocitySpace = 1;
+ 	
+ 	struct ns3__Space1DDescription *pszSpace1DDesc = NULL;
+ 	pszSpace1DDesc = (struct ns3__Space1DDescription *)soap_malloc(soap, sizeof(struct ns3__Space1DDescription));
+ 	if (NULL == pszSpace1DDesc) {
+ 		// Out of memory
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszSpace1DDesc, 0, sizeof(struct ns3__Space1DDescription));
+ 	
+ 	// URI
+ 	char *psz1DURI = NULL;
+ 	psz1DURI = (char *)soap_malloc(soap, 128);
+ 	if (NULL == psz1DURI) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(psz1DURI, 0, 128);
+ 	snprintf(psz1DURI, 128, "http://www.onvif.org/ver10/tptz/ZoomSpaces/VelocityGenericSpace");
+ 	pszSpace1DDesc->URI = psz1DURI;
+ 	// XRange
+ 	struct ns3__FloatRange *psz1DXRange = NULL;
+ 	psz1DXRange = (struct ns3__FloatRange *)soap_malloc(soap, sizeof(struct ns3__FloatRange));
+ 	if (NULL == psz1DXRange) {
+ 		return SOAP_EOM;
+ 	}
+ 	psz1DXRange->Min = -1.0;
+ 	psz1DXRange->Max = 1.0;
+ 	pszSpace1DDesc->XRange = psz1DXRange;
+ 	
+ 	pszPTZSpace->ContinuousZoomVelocitySpace = pszSpace1DDesc;
+ 	// @ }
+ 	
+ 	pszPTZNode->SupportedPTZSpaces = pszPTZSpace;
+ 	
+ 	// MaximumNumberOfPresets
+ 	pszPTZNode->MaximumNumberOfPresets = 64;
+ 	// HomeSupported
+ 	pszPTZNode->HomeSupported = xsd__boolean__true_;
+ 	
+ 	*pszNode = pszPTZNode;
+ 	
+	return SOAP_OK;
+}
 
- int  __ns13__GetNode(struct soap* soap, struct _ns13__GetNode *ns13__GetNode, struct _ns13__GetNodeResponse *ns13__GetNodeResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int  __ns13__GetNodes(struct soap* soap, struct _ns13__GetNodes *ns13__GetNodes, struct _ns13__GetNodesResponse *ns13__GetNodesResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+	int nRet = SOAP_OK;
+	
+	// Get All PTZ Node
+	nRet = GetPTZNode(soap, 0, &(ns13__GetNodesResponse->__sizePTZNode), &(ns13__GetNodesResponse->PTZNode));
+	if (SOAP_OK != nRet) {
+		printf("Get PTZ Node failed.\n");
+	}
+ 	
+ 	printf("size Node: %d\n Addr: %x\n", ns13__GetNodesResponse->__sizePTZNode, ns13__GetNodesResponse->PTZNode);
+ 	
+	return nRet;
+}
 
- int  __ns13__SetConfiguration(struct soap* soap, struct _ns13__SetConfiguration *ns13__SetConfiguration, struct _ns13__SetConfigurationResponse *ns13__SetConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int  __ns13__GetNode(struct soap* soap, struct _ns13__GetNode *ns13__GetNode, struct _ns13__GetNodeResponse *ns13__GetNodeResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+	int nRet = SOAP_OK;
+	int nNodeId = 0;
+	int nNodeCount = 0;
+	
+	nNodeId = atoi(ns13__GetNode->NodeToken);
+	printf("Node Token: %s\n", ns13__GetNode->NodeToken);
+	
+	// Get PTZ Node
+	nRet = GetPTZNode(soap, nNodeId, &nNodeCount, &(ns13__GetNodeResponse->PTZNode));
+	if (SOAP_OK != nRet) {
+		printf("Get PTZ Node %d failed.\n", nNodeId);
+	}
+	
+	return SOAP_OK;
+}
 
- int  __ns13__GetConfigurationOptions(struct soap* soap, struct _ns13__GetConfigurationOptions *ns13__GetConfigurationOptions, struct _ns13__GetConfigurationOptionsResponse *ns13__GetConfigurationOptionsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int  __ns13__SetConfiguration(struct soap* soap, struct _ns13__SetConfiguration *ns13__SetConfiguration, struct _ns13__SetConfigurationResponse *ns13__SetConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+
+int  __ns13__GetConfigurationOptions(struct soap* soap, struct _ns13__GetConfigurationOptions *ns13__GetConfigurationOptions, struct _ns13__GetConfigurationOptionsResponse *ns13__GetConfigurationOptionsResponse)
+{
+ 	printf("%s\n",__FUNCTION__);
+ 	
+ 	struct ns3__PTZConfigurationOptions *pszPTZConfOpt = NULL;
+ 	
+ 	pszPTZConfOpt = (struct ns3__PTZConfigurationOptions *)soap_malloc(soap, sizeof(struct ns3__PTZConfigurationOptions));
+ 	if (NULL == pszPTZConfOpt) {
+ 		// Out of memory
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszPTZConfOpt, 0, sizeof(struct ns3__PTZConfigurationOptions));
+ 	
+ 	// PTZ Space
+ 	struct ns3__PTZSpaces *pszPTZSpace = NULL;
+ 	pszPTZSpace = (struct ns3__PTZSpaces *)soap_malloc(soap, sizeof(struct ns3__PTZSpaces));
+ 	if (NULL == pszPTZSpace) {
+ 		// Out of memory
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszPTZSpace, 0, sizeof(struct ns3__PTZSpaces));
+ 	
+ 	// @ {
+ 	// ContinuousPanTiltVelocitySpace
+ 	pszPTZSpace->__sizeContinuousPanTiltVelocitySpace = 1;
+ 	
+ 	struct ns3__Space2DDescription *pszSpace2DDesc = NULL;
+ 	pszSpace2DDesc = (struct ns3__Space2DDescription *)soap_malloc(soap, sizeof(struct ns3__Space2DDescription));
+ 	if (NULL == pszSpace2DDesc) {
+ 		// Out of memory
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszSpace2DDesc, 0, sizeof(struct ns3__Space2DDescription));
+ 	
+ 	// URI
+ 	char *pszURI = NULL;
+ 	pszURI = (char *)soap_malloc(soap, 128);
+ 	if (NULL == pszURI) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszURI, 0, 128);
+ 	snprintf(pszURI, 128, "http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocityGenericSpace");
+ 	pszSpace2DDesc->URI = pszURI;
+ 	// XRange
+ 	struct ns3__FloatRange *pszXRange = NULL;
+ 	pszXRange = (struct ns3__FloatRange *)soap_malloc(soap, sizeof(struct ns3__FloatRange));
+ 	if (NULL == pszXRange) {
+ 		return SOAP_EOM;
+ 	}
+ 	pszXRange->Min = -1.0;
+ 	pszXRange->Max = 1.0;
+ 	pszSpace2DDesc->XRange = pszXRange;
+ 	// YRange
+ 	struct ns3__FloatRange *pszYRange = NULL;
+ 	pszYRange = (struct ns3__FloatRange *)soap_malloc(soap, sizeof(struct ns3__FloatRange));
+ 	if (NULL == pszYRange) {
+ 		return SOAP_EOM;
+ 	}
+ 	pszYRange->Min = -1.0;
+ 	pszYRange->Max = 1.0;
+ 	pszSpace2DDesc->YRange = pszYRange;
+ 	
+ 	pszPTZSpace->ContinuousPanTiltVelocitySpace = pszSpace2DDesc;
+ 	// @ }
+ 	
+ 	// @ {
+ 	// ContinuousZoomVelocitySpace
+ 	pszPTZSpace->__sizeContinuousZoomVelocitySpace = 1;
+ 	
+ 	struct ns3__Space1DDescription *pszSpace1DDesc = NULL;
+ 	pszSpace1DDesc = (struct ns3__Space1DDescription *)soap_malloc(soap, sizeof(struct ns3__Space1DDescription));
+ 	if (NULL == pszSpace1DDesc) {
+ 		// Out of memory
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszSpace1DDesc, 0, sizeof(struct ns3__Space1DDescription));
+ 	
+ 	// URI
+ 	char *psz1DURI = NULL;
+ 	psz1DURI = (char *)soap_malloc(soap, 128);
+ 	if (NULL == psz1DURI) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(psz1DURI, 0, 128);
+ 	snprintf(psz1DURI, 128, "http://www.onvif.org/ver10/tptz/ZoomSpaces/VelocityGenericSpace");
+ 	pszSpace1DDesc->URI = psz1DURI;
+ 	// XRange
+ 	struct ns3__FloatRange *psz1DXRange = NULL;
+ 	psz1DXRange = (struct ns3__FloatRange *)soap_malloc(soap, sizeof(struct ns3__FloatRange));
+ 	if (NULL == psz1DXRange) {
+ 		return SOAP_EOM;
+ 	}
+ 	psz1DXRange->Min = -1.0;
+ 	psz1DXRange->Max = 1.0;
+ 	pszSpace1DDesc->XRange = psz1DXRange;
+ 	
+ 	pszPTZSpace->ContinuousZoomVelocitySpace = pszSpace1DDesc;
+ 	// @ }
+ 	
+ 	// @ {
+ 	// PTZ Timeout
+ 	struct ns3__DurationRange *pszDurRange = NULL;
+ 	pszDurRange = (struct ns3__DurationRange *)soap_malloc(soap, sizeof(struct ns3__DurationRange));
+ 	if (NULL == pszDurRange) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszDurRange, 0, sizeof(struct ns3__DurationRange));
+ 	
+ 	char *pszMin = NULL;
+ 	pszMin = (char *)soap_malloc(soap, 10);
+ 	if (NULL == pszMin) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszMin, 0, 10);
+ 	snprintf(pszMin, 10, "PT5S");
+ 	pszDurRange->Min = pszMin;
+ 	
+ 	char *pszMax = NULL;
+ 	pszMax = (char *)soap_malloc(soap, 10);
+ 	if (NULL == pszMax) {
+ 		return SOAP_EOM;
+ 	}
+ 	memset(pszMax, 0, 10);
+ 	snprintf(pszMax, 10, "PT30S");
+ 	pszDurRange->Max = pszMax;
+ 	// @ }
+ 	
+ 	// 
+ 	pszPTZConfOpt->Spaces = pszPTZSpace;
+ 	pszPTZConfOpt->PTZTimeout = pszDurRange;
+ 	pszPTZConfOpt->__size = 1;
+ 	
+ 	ns13__GetConfigurationOptionsResponse->PTZConfigurationOptions = pszPTZConfOpt;
+ 	
+ 	return SOAP_OK;
+}
 
  int  __ns13__GotoHomePosition(struct soap* soap, struct _ns13__GotoHomePosition *ns13__GotoHomePosition, struct _ns13__GotoHomePositionResponse *ns13__GotoHomePositionResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
  int  __ns13__SetHomePosition(struct soap* soap, struct _ns13__SetHomePosition *ns13__SetHomePosition, struct _ns13__SetHomePositionResponse *ns13__SetHomePositionResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns13__ContinuousMove(struct soap* soap, struct _ns13__ContinuousMove *ns13__ContinuousMove, struct _ns13__ContinuousMoveResponse *ns13__ContinuousMoveResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int SendCmdToDevice(int nfd, int nCMD, int nType, int nValue)
+{
+		ONVIF_FIFO_Comand_t szPTZCmd;
+		int nSendLen = 0;
+
+		memset(&szPTZCmd, 0, sizeof(ONVIF_FIFO_Comand_t));
+		
+		szPTZCmd.Cmdhead = 0x0A;
+		szPTZCmd.Cmd_ver = 0x01;
+		szPTZCmd.Cmd_ID  = nCMD;
+	  szPTZCmd.Cmd_Para[0] = nType;
+		szPTZCmd.Cmd_Para[1] = nValue;
+		
+		nSendLen = write(nfd, &szPTZCmd, sizeof(szPTZCmd));
+    if (0 > nSendLen) {
+        perror("Send Command To IPC_Q313");
+        return -1;
+    }
+    
+    return 0;
+}
+
+int  __ns13__ContinuousMove(struct soap* soap, struct _ns13__ContinuousMove *ns13__ContinuousMove, struct _ns13__ContinuousMoveResponse *ns13__ContinuousMoveResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+	// Check Media Profile
+	// current support 1
+	if (0 != strcmp(ns13__ContinuousMove->ProfileToken, "1")) {
+		printf("No find %s profiletoken.\n");
+		return soap_sender_fault_subcode(soap, "InvalidArgVal", "NoProfile", NULL);
+	}
+	
+	// Open receive fifo for send
+	int nFifofd = 0;
+	if (0 > SingleFifoinit("/dev/Fifo_WTE", &nFifofd, O_WRONLY)) {
+		printf("Open /dev/Fifo_WTE failed.\n");
+		return SOAP_OK;
+	}
+	
+	float fX = 0.0;
+	float fY = 0.0;
+	float fZ = 0.0;
+	int nTimeOut = 0;
+	
+	if (NULL != ns13__ContinuousMove->Velocity->PanTilt) {
+		fX = ns13__ContinuousMove->Velocity->PanTilt->x;
+		fY = ns13__ContinuousMove->Velocity->PanTilt->y;
+	
+	  // Send X Move
+		if (0.0 < fX) {
+			SendCmdToDevice(nFifofd, 0x03, 0x01, fX);
+	  }
+	  else {
+	  	SendCmdToDevice(nFifofd, 0x03, 0x02, fX);
+	  }
+		
+		// Send Y Move
+		if (0.0 < fY) {
+			SendCmdToDevice(nFifofd, 0x03, 0x03, fY);
+	  }
+	  else {
+	  	SendCmdToDevice(nFifofd, 0x03, 0x04, fY);
+	  }
+	}
+	
+	if (NULL != ns13__ContinuousMove->Velocity->Zoom) {
+		fZ = ns13__ContinuousMove->Velocity->Zoom->x;
+		
+		if (0.0 < fZ) {
+			SendCmdToDevice(nFifofd, 0x03, 0x05, fZ);
+	  }
+	  else {
+	  	SendCmdToDevice(nFifofd, 0x03, 0x06, fZ);
+	  }
+	}
+	
+	if (NULL != ns13__ContinuousMove->Timeout) {
+		char szBuf[10] = {0};
+		char *pszTmp = NULL;
+		
+		pszTmp = strstr(ns13__ContinuousMove->Timeout, "PT");
+		int nLen = strlen(pszTmp);
+		pszTmp[nLen - 2] = '\0';
+		
+		nTimeOut = atoi(pszTmp);
+	}
+	
+	printf("X: %f\n Y: %f\n Z: %f\n, Timeout: %d\n", fX, fY, fZ, nTimeOut);
+	
+	return SOAP_OK;
+}
 
  int  __ns13__RelativeMove(struct soap* soap, struct _ns13__RelativeMove *ns13__RelativeMove, struct _ns13__RelativeMoveResponse *ns13__RelativeMoveResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -409,7 +974,36 @@ int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStat
 
  int  __ns13__AbsoluteMove(struct soap* soap, struct _ns13__AbsoluteMove *ns13__AbsoluteMove, struct _ns13__AbsoluteMoveResponse *ns13__AbsoluteMoveResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns13__Stop(struct soap* soap, struct _ns13__Stop *ns13__Stop, struct _ns13__StopResponse *ns13__StopResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int  __ns13__Stop(struct soap* soap, struct _ns13__Stop *ns13__Stop, struct _ns13__StopResponse *ns13__StopResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+	// Check Media Profile
+	// current support 1
+	if (0 != strcmp(ns13__Stop->ProfileToken, "1")) {
+		printf("No find %s profiletoken.\n");
+		return soap_sender_fault_subcode(soap, "InvalidArgVal", "NoProfile", NULL);
+	}
+	
+	int nXStop = 0;
+	int nYStop = 0;
+	int nZStop = 0;
+	
+	if (NULL != ns13__Stop->PanTilt &&
+		  xsd__boolean__true_ == *(ns13__Stop->PanTilt)) {
+		nXStop = 1;
+		nYStop = 1;
+	}
+	
+	if (NULL != ns13__Stop->Zoom &&
+		  xsd__boolean__true_ == *(ns13__Stop->Zoom)) {
+		nZStop = 1;
+	}
+	
+	printf("XStop: %d\n YStop: %d\n ZStop: %d\n", nXStop, nYStop, nZStop);
+	
+	return SOAP_OK;
+}
 
  int  __ns16__PullMessages(struct soap* soap, struct _ns9__PullMessages *ns9__PullMessages, struct _ns9__PullMessagesResponse *ns9__PullMessagesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -431,7 +1025,14 @@ int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStat
 
  int  __ns2__GetVideoSources(struct soap* soap, struct _ns2__GetVideoSources *ns2__GetVideoSources, struct _ns2__GetVideoSourcesResponse *ns2__GetVideoSourcesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns2__GetAudioSources(struct soap* soap, struct _ns2__GetAudioSources *ns2__GetAudioSources, struct _ns2__GetAudioSourcesResponse *ns2__GetAudioSourcesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int  __ns2__GetAudioSources(struct soap* soap, struct _ns2__GetAudioSources *ns2__GetAudioSources, struct _ns2__GetAudioSourcesResponse *ns2__GetAudioSourcesResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+	return soap_receiver_fault_subcode(soap, "ter:ActionNotSupported", "AudioOutputNotSupported", NULL);
+	
+	return SOAP_OK;
+}
 
  int  __ns2__GetAudioOutputs(struct soap* soap, struct _ns2__GetAudioOutputs *ns2__GetAudioOutputs, struct _ns2__GetAudioOutputsResponse *ns2__GetAudioOutputsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -445,7 +1046,7 @@ int __ns2__GetProfile(struct soap* soap, struct _ns2__GetProfile *ns2__GetProfil
     memset(pProfile,0,sizeof(struct ns3__Profile));
     pProfile->Name = "Profile 0";
     pProfile->token= "1";
-
+    
     ns2__GetProfileResponse->Profile = pProfile;
     return SOAP_OK;
 }
@@ -454,29 +1055,33 @@ char *pszIP[] = {"0.0.0.0"};
 
 int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProfiles, struct _ns2__GetProfilesResponse *ns2__GetProfilesResponse)
 {
-    printf("%s\n",__FUNCTION__);
-    struct ns3__IntRectangle *pBounds;
+  printf("%s\n",__FUNCTION__);
+  
+  // Video Source Config
+  struct ns3__IntRectangle *pBounds;
 	pBounds = (struct ns3__IntRectangle *)soap_malloc(soap,sizeof(struct ns3__IntRectangle));
 	memset(pBounds, 0, sizeof(struct ns3__IntRectangle));
 	pBounds->x = 0;
 	pBounds->y = 0;
 	pBounds->width =  1920;
 	pBounds->height = 1080;
-    struct ns3__VideoSourceConfiguration *pVideoSourcesConfig;
+  
+  struct ns3__VideoSourceConfiguration *pVideoSourcesConfig;
 	pVideoSourcesConfig = (struct ns3__VideoSourceConfiguration *)soap_malloc(soap,sizeof(struct ns3__VideoSourceConfiguration));
 	memset(pVideoSourcesConfig, 0, sizeof(struct ns3__VideoSourceConfiguration));
 	pVideoSourcesConfig->Name = "stream1";
 	pVideoSourcesConfig->UseCount = 0;
 	pVideoSourcesConfig->token = "1";
 	pVideoSourcesConfig->SourceToken = "1";
-    pVideoSourcesConfig->Bounds = pBounds;
+  pVideoSourcesConfig->Bounds = pBounds;
 
-
-    // VideoEncoderConfiguration
-    struct ns3__VideoResolution *pVideoResolution;
+    
+  // Video Encoder Configuration
+  struct ns3__VideoResolution *pVideoResolution;
 	pVideoResolution = (struct ns3__VideoResolution *)soap_malloc(soap,sizeof(struct ns3__VideoResolution));
 	pVideoResolution->Width = 1920;
 	pVideoResolution->Height = 1080;
+	
 	struct ns3__VideoEncoderConfiguration *pVideoEncoderConfig;
 	pVideoEncoderConfig = (struct ns3__VideoEncoderConfiguration *)soap_malloc(soap,sizeof(struct ns3__VideoEncoderConfiguration));
 	memset(pVideoEncoderConfig, 0, sizeof(struct ns3__VideoEncoderConfiguration));
@@ -484,32 +1089,32 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 	pVideoEncoderConfig->UseCount = 0;
 	pVideoEncoderConfig->token = "1";
 	pVideoEncoderConfig->Encoding = ns3__VideoEncoding__H264;
-    pVideoEncoderConfig->Resolution = pVideoResolution;
-    pVideoEncoderConfig->Quality = 50.000000;
+  pVideoEncoderConfig->Resolution = pVideoResolution;
+  pVideoEncoderConfig->Quality = 50.000000;
 
-    struct ns3__VideoRateControl *pVideoRateCtrl;
-    pVideoRateCtrl= (struct ns3__VideoRateControl *)soap_malloc(soap,sizeof(struct ns3__VideoRateControl));
-    memset(pVideoRateCtrl,0,sizeof(struct ns3__VideoRateControl));
-    pVideoRateCtrl->FrameRateLimit = 30;
+  struct ns3__VideoRateControl *pVideoRateCtrl;
+  pVideoRateCtrl= (struct ns3__VideoRateControl *)soap_malloc(soap,sizeof(struct ns3__VideoRateControl));
+  memset(pVideoRateCtrl,0,sizeof(struct ns3__VideoRateControl));
+  pVideoRateCtrl->FrameRateLimit = 30;
 	pVideoRateCtrl->EncodingInterval=1;
 	pVideoRateCtrl->BitrateLimit = 2000;
-    pVideoEncoderConfig->RateControl = pVideoRateCtrl;
+  pVideoEncoderConfig->RateControl = pVideoRateCtrl;
 
-    struct ns3__H264Configuration *pH264Config;
-    pH264Config = (struct ns3__H264Configuration *)soap_malloc(soap,sizeof(struct ns3__H264Configuration));
-    memset(pH264Config,0,sizeof(struct ns3__H264Configuration));
-    pH264Config->GovLength = 0;
-    pH264Config->H264Profile = ns3__H264Profile__Main;
-    pVideoEncoderConfig->H264 = pH264Config;
+  struct ns3__H264Configuration *pH264Config;
+  pH264Config = (struct ns3__H264Configuration *)soap_malloc(soap,sizeof(struct ns3__H264Configuration));
+  memset(pH264Config,0,sizeof(struct ns3__H264Configuration));
+  pH264Config->GovLength = 0;
+  pH264Config->H264Profile = ns3__H264Profile__Main;
+  pVideoEncoderConfig->H264 = pH264Config;
 
-    struct ns3__MulticastConfiguration *pMulticastConfig;
-    pMulticastConfig = (struct ns3__MulticastConfiguration *)soap_malloc(soap,sizeof(struct ns3__MulticastConfiguration));
-    memset(pMulticastConfig,0,sizeof(struct ns3__MulticastConfiguration));
+  struct ns3__MulticastConfiguration *pMulticastConfig;
+  pMulticastConfig = (struct ns3__MulticastConfiguration *)soap_malloc(soap,sizeof(struct ns3__MulticastConfiguration));
+  memset(pMulticastConfig,0,sizeof(struct ns3__MulticastConfiguration));
 
 	//char *pszIP = (char *)soap_malloc(soap, 128);
 	//memset(pszIP, 0, 128);
 	//strcpy(pszIP, "0.0.0.0");
-
+    
     struct ns3__IPAddress *pxAddr;
     pxAddr = (struct ns3__IPAddress *)soap_malloc(soap,sizeof(struct ns3__IPAddress));
     memset(pxAddr,0,sizeof(struct ns3__IPAddress));
@@ -519,9 +1124,90 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
     pMulticastConfig->Port = 0;
     pMulticastConfig->TTL = 64;
     pMulticastConfig->AutoStart = xsd__boolean__false_;
-
+    
     pVideoEncoderConfig->Multicast = pMulticastConfig;
     pVideoEncoderConfig->SessionTimeout = "PT60S";
+    
+    // @ {
+    // PTZ config
+    struct ns3__PTZConfiguration *pszPTZConf = NULL;
+    pszPTZConf = (struct ns3__PTZConfiguration *)soap_malloc(soap, sizeof(struct ns3__PTZConfiguration));
+    if (NULL == pszPTZConf) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszPTZConf, 0, sizeof(struct ns3__PTZConfiguration));
+    
+    // Name
+    char *pszName = NULL;
+    pszName = (char *)soap_malloc(soap, 64*sizeof(char));
+    if (NULL == pszName) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszName, 0, 64);
+    snprintf(pszName, 64, "PTZConfig 0");
+    pszPTZConf->Name = pszName;
+    
+    // Use Count
+    pszPTZConf->UseCount = 1;
+    
+    // Token
+    char *pszToken = NULL;
+    pszToken = (char *)soap_malloc(soap, 64*sizeof(char));
+    if (NULL == pszToken) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszToken, 0, 64);
+    snprintf(pszToken, 64, "1");
+    pszPTZConf->token = pszToken;
+    
+    //PTZ Node Token
+    char *pszNodeToken = NULL;
+    pszNodeToken = (char *)soap_malloc(soap, 64*sizeof(char));
+    if (NULL == pszNodeToken) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszNodeToken, 0, 64*sizeof(char));
+    snprintf(pszNodeToken, 64,  "1");
+    pszPTZConf->NodeToken = pszNodeToken;
+    
+    // DefaultContinuousPanTiltVelocitySpace 
+    char *pszDefaultPTSpace = NULL;
+    pszDefaultPTSpace = (char *)soap_malloc(soap, 128*sizeof(char));
+    if (NULL == pszDefaultPTSpace) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszDefaultPTSpace, 0, 128*sizeof(char));
+    snprintf(pszDefaultPTSpace, 128, "http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocityGenericSpace");
+   	pszPTZConf->DefaultContinuousPanTiltVelocitySpace = pszDefaultPTSpace;
+   	
+   	// DefaultContinuousZoomVelocitySpace
+   	char *pszDefaultZoomSpace = NULL;
+    pszDefaultZoomSpace = (char *)soap_malloc(soap, 128*sizeof(char));
+    if (NULL == pszDefaultZoomSpace) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszDefaultZoomSpace, 0, 128*sizeof(char));
+    snprintf(pszDefaultZoomSpace, 128, "http://www.onvif.org/ver10/tptz/ZoomSpaces/VelocityGenericSpace");
+   	pszPTZConf->DefaultContinuousZoomVelocitySpace = pszDefaultZoomSpace;
+   	
+   	// DefaultPTZTimeout 
+   	char *pszDefaultPTZTimeout = NULL;
+    pszDefaultPTZTimeout = (char *)soap_malloc(soap, 32*sizeof(char));
+    if (NULL == pszDefaultPTZTimeout) {
+    	// Out of memory
+    	return SOAP_EOM;
+    }
+    memset(pszDefaultPTZTimeout, 0, 32*sizeof(char));
+    snprintf(pszDefaultPTZTimeout, 32, "10");
+   	pszPTZConf->DefaultPTZTimeout = pszDefaultPTZTimeout;
+   	// @ }
+    
     //Target Profile
     struct ns3__Profile *pProfile;
     pProfile = (struct ns3__Profile *)soap_malloc(soap,sizeof(struct ns3__Profile));
@@ -530,9 +1216,11 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
     pProfile->token= "1";
     pProfile->VideoSourceConfiguration = pVideoSourcesConfig;
     pProfile->VideoEncoderConfiguration= pVideoEncoderConfig;
+    pProfile->PTZConfiguration = pszPTZConf;
 
     ns2__GetProfilesResponse->__sizeProfiles = 1;
     ns2__GetProfilesResponse->Profiles = pProfile;
+    
     return SOAP_OK;
 }
 
@@ -679,7 +1367,7 @@ int __ns2__GetVideoSourceConfigurationOptions(struct soap* soap, struct _ns2__Ge
     pRange[3]->Max = 240;
     pRange[3]->Min = 200;
     #endif
-
+    
     struct ns3__IntRectangleRange *boundsRange;
     boundsRange = (struct ns3__IntRectangleRange*)soap_malloc(soap,sizeof(struct ns3__IntRectangleRange));
     memset(boundsRange,0,sizeof(struct ns3__IntRectangleRange));
@@ -691,13 +1379,13 @@ int __ns2__GetVideoSourceConfigurationOptions(struct soap* soap, struct _ns2__Ge
     char szVideoSourceConfigOption[][6] = {"H264","JPEG","MPEG"};
     char **pVSConfigOption = NULL;
     pVSConfigOption = (char **)szVideoSourceConfigOption;
-
+    
     struct ns3__VideoSourceConfigurationOptions *pVideoSourceConfigOption;
     pVideoSourceConfigOption = (struct ns3__VideoSourceConfigurationOptions*)soap_malloc(soap,sizeof(struct ns3__VideoSourceConfigurationOptions));
     memset(pVideoSourceConfigOption ,0, sizeof(struct ns3__VideoSourceConfigurationOptions));
     pVideoSourceConfigOption->VideoSourceTokensAvailable = pVSConfigOption;
     pVideoSourceConfigOption->BoundsRange = boundsRange;
-
+    
     ns2__GetVideoSourceConfigurationOptionsResponse->Options = pVideoSourceConfigOption;
     return SOAP_OK;
 }
@@ -733,7 +1421,7 @@ int __ns2__GetVideoEncoderConfigurationOptions(struct soap* soap, struct _ns2__G
     memset(GovLenRange,0,sizeof(struct ns3__IntRange));
     GovLenRange->Min = 0;
     GovLenRange->Max = 254;
-
+ 
     //H264
     struct ns3__H264Options *pH264Options;
     pH264Options = (struct ns3__H264Options *)soap_malloc(soap,sizeof(struct ns3__H264Options));
@@ -770,7 +1458,7 @@ int __ns2__GetVideoEncoderConfigurationOptions(struct soap* soap, struct _ns2__G
     memset(pIntRange,0,sizeof(struct ns3__IntRange));
     pIntRange->Min = 0;
     pIntRange->Max = 100;
-
+        
     struct ns3__VideoEncoderConfigurationOptions *pVideoEncoderConfigurationOptions;
     pVideoEncoderConfigurationOptions = (struct ns3__VideoEncoderConfigurationOptions *)soap_malloc(soap,sizeof(struct ns3__VideoEncoderConfigurationOptions));
     memset(pVideoEncoderConfigurationOptions,0,sizeof(struct ns3__VideoEncoderConfigurationOptions));
@@ -803,17 +1491,13 @@ int __ns2__GetStreamUri(struct soap* soap, struct _ns2__GetStreamUri *ns2__GetSt
 	memset(pMediaUri, 0, sizeof(struct ns3__MediaUri));
     char *rtsp_uri;
     rtsp_uri = (char*)soap_malloc(soap,128*sizeof(char));
-    #if AUTO_URI_FLAG
     snprintf(rtsp_uri,128,"rtsp://%s%s",GetLocalHostIP(),"/stream1\0");
-    #else
-    rtsp_uri = RTSP_URI_XADDR;
-    #endif
-	pMediaUri->Uri= rtsp_uri;
+		pMediaUri->Uri= rtsp_uri;
     printf("last=%s\n",pMediaUri->Uri);
 	pMediaUri->InvalidAfterConnect = xsd__boolean__false_;
 	pMediaUri->InvalidAfterReboot = xsd__boolean__false_;
 	pMediaUri->Timeout = "PT0S";
-
+	
 	ns2__GetStreamUriResponse->MediaUri = pMediaUri;
     return SOAP_OK;
 }
@@ -989,28 +1673,76 @@ int __ns2__GetStreamUri(struct soap* soap, struct _ns2__GetStreamUri *ns2__GetSt
 int __ns8__GetDeviceInformation(struct soap* soap, struct _ns8__GetDeviceInformation *ns8__GetDeviceInformation, struct _ns8__GetDeviceInformationResponse *ns8__GetDeviceInformationResponse)
 {
     printf("%s\n",__FUNCTION__);
-    ns8__GetDeviceInformationResponse->Manufacturer    = "www.hunda.com";
-	ns8__GetDeviceInformationResponse->Model           = "Dinion";
-	ns8__GetDeviceInformationResponse->FirmwareVersion = "auto";
-	ns8__GetDeviceInformationResponse->SerialNumber    = "unit0004630a96ec";
-	ns8__GetDeviceInformationResponse->HardwareId      = "Hunda";
+    
+    char *pszTmp = NULL;
+    
+    // Manufacturer
+    pszTmp = (char *)soap_malloc(soap, 64);
+    if (NULL == pszTmp) {
+    	return SOAP_EOM;
+    }
+    memset(pszTmp, 0, 64);
+    snprintf(pszTmp, 64, "HUNDA");
+    
+    ns8__GetDeviceInformationResponse->Manufacturer = pszTmp;
+    
+    // Model
+    pszTmp = (char *)soap_malloc(soap, 64);
+    if (NULL == pszTmp) {
+    	return SOAP_EOM;
+    }
+    memset(pszTmp, 0, 64);
+    snprintf(pszTmp, 64, "IPC_Q313");
+    
+    ns8__GetDeviceInformationResponse->Model = pszTmp;
+    
+    // FirmwareVersion
+    pszTmp = (char *)soap_malloc(soap, 64);
+    if (NULL == pszTmp) {
+    	return SOAP_EOM;
+    }
+    memset(pszTmp, 0, 64);
+    snprintf(pszTmp, 64, "1.0.1.1");
+    
+    ns8__GetDeviceInformationResponse->FirmwareVersion = pszTmp;
+    
+    // SerialNumber
+    pszTmp = (char *)soap_malloc(soap, 64);
+    if (NULL == pszTmp) {
+    	return SOAP_EOM;
+    }
+    memset(pszTmp, 0, 64);
+    snprintf(pszTmp, 64, "unit0004630a96ec");
+    
+    ns8__GetDeviceInformationResponse->SerialNumber = pszTmp;
+    
+    // HardwareId
+    pszTmp = (char *)soap_malloc(soap, 64);
+    if (NULL == pszTmp) {
+    	return SOAP_EOM;
+    }
+    memset(pszTmp, 0, 64);
+    snprintf(pszTmp, 64, "H0001201Q313");
+    
+		ns8__GetDeviceInformationResponse->HardwareId = pszTmp;
+		
     return SOAP_OK;
 }
 
  int  __ns8__SetSystemDateAndTime(struct soap* soap, struct _ns8__SetSystemDateAndTime *ns8__SetSystemDateAndTime, struct _ns8__SetSystemDateAndTimeResponse *ns8__SetSystemDateAndTimeResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
 int __ns8__GetSystemDateAndTime(
-        struct soap* soap,
-        struct _ns8__GetSystemDateAndTime *ns8__GetSystemDateAndTime,
+        struct soap* soap, 
+        struct _ns8__GetSystemDateAndTime *ns8__GetSystemDateAndTime, 
         struct _ns8__GetSystemDateAndTimeResponse *ns8__GetSystemDateAndTimeResponse)
 {
     printf("%s\n",__FUNCTION__);
-    time_t rawtime;
-    struct tm *timeinfo;
-    time(&rawtime);
+    time_t rawtime; 
+    struct tm *timeinfo; 
+    time(&rawtime); 
     timeinfo = localtime(&rawtime);
 
-    struct ns3__Time *mytime;
+    struct ns3__Time *mytime; 
 	struct ns3__Date *mydate;
     struct ns3__DateTime *datetime;
     mytime = (struct ns3__Time*)soap_malloc(soap,sizeof(struct ns3__Time));
@@ -1019,7 +1751,7 @@ int __ns8__GetSystemDateAndTime(
     memset(mytime,0,sizeof(struct ns3__Time));
     memset(mydate,0,sizeof(struct ns3__Date));
     memset(datetime,0,sizeof(struct ns3__DateTime));
-
+    
     mytime->Hour = timeinfo->tm_hour;
     mytime->Minute = timeinfo->tm_min;
     mytime->Second = timeinfo->tm_sec;
@@ -1035,7 +1767,7 @@ int __ns8__GetSystemDateAndTime(
     systemdateAndtime->DateTimeType = ns3__SetDateTimeType__Manual;
     systemdateAndtime->DaylightSavings = xsd__boolean__true_;
     systemdateAndtime->LocalDateTime = datetime;
-
+    
 	ns8__GetSystemDateAndTimeResponse->SystemDateAndTime = systemdateAndtime;
 	return SOAP_OK;
 }
@@ -1094,57 +1826,21 @@ int __ns8__GetWsdlUrl(struct soap* soap, struct _ns8__GetWsdlUrl *ns8__GetWsdlUr
 }
 
 
-
-/*
-int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct _ns8__GetCapabilitiesResponse *ns8__GetCapabilitiesResponse)
-{
-    printf("%s\n",__FUNCTION__);
-    struct ns3__RealTimeStreamingCapabilities *RTstreamcapt;
-    RTstreamcapt = (struct ns3__RealTimeStreamingCapabilities*)soap_malloc(soap,sizeof(struct ns3__RealTimeStreamingCapabilities));
-    memset(RTstreamcapt,0,sizeof(struct ns3__RealTimeStreamingCapabilities));
-    enum xsd__boolean * rt;
-    rt = (enum xsd__boolean*)soap_malloc(soap,sizeof(enum xsd__boolean));
-    memset(rt,0,sizeof(enum xsd__boolean));
-    *rt = xsd__boolean__false_;
-    RTstreamcapt->RTPMulticast = rt;
-    RTstreamcapt->RTP_USCORETCP= rt;
-    RTstreamcapt->RTP_USCORERTSP_USCORETCP= rt;
-
-    struct ns3__MediaCapabilities *mediacapt;
-    mediacapt = (struct ns3__MediaCapabilities*)soap_malloc(soap,sizeof(struct ns3__MediaCapabilities));
-    memset(mediacapt,0,sizeof(struct ns3__MediaCapabilities));
-    char *cap_uri;
-    cap_uri = (char*)soap_malloc(soap,32*sizeof(char));
-    snprintf(cap_uri,32,"http://%s:8800",GetLocalHostIP());
-    printf("in capabilities Xaddr=%s\n",cap_uri);
-    mediacapt->XAddr = cap_uri;
-    mediacapt->StreamingCapabilities = RTstreamcapt;
-
-    ns8__GetCapabilitiesResponse->Capabilities = (struct ns3__Capabilities*)soap_malloc(soap,sizeof(struct ns3__Capabilities));
-    memset(ns8__GetCapabilitiesResponse->Capabilities,0,sizeof(struct ns3__Capabilities));
-    ns8__GetCapabilitiesResponse->Capabilities->Media = mediacapt;
-    return SOAP_OK;
-}
-*/
-
-// Media Capabilities
-
-
 // Device Capabilities
 int ResponseDeviceCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct ns3__Capabilities *pszCap)
 {
 	struct ns3__DeviceCapabilities *pszDevCap = NULL;
-
+	
 	pszDevCap = (struct ns3__DeviceCapabilities *)soap_malloc(soap, sizeof(struct ns3__DeviceCapabilities));
 	if (NULL == pszDevCap) {
 		// Out of memory
 		return SOAP_EOM;
 	}
 	memset(pszDevCap, 0, sizeof(struct ns3__DeviceCapabilities));
-
+	
 	// URI
 	char *pszCapURI = NULL;
-
+	
 	pszCapURI = (char *)soap_malloc(soap, 32*sizeof(char));
 	if (NULL == pszCapURI) {
 		// Out of memory
@@ -1152,77 +1848,77 @@ int ResponseDeviceCapabilities(struct soap* soap, struct _ns8__GetCapabilities *
 	}
 	memset(pszCapURI, 0, 32);
 	snprintf(pszCapURI, 32, "http://%s:8800", GetLocalHostIP());
-
+	
 	pszDevCap->XAddr = pszCapURI;
-
+	
 	// NetworkCapabilities
 	struct ns3__NetworkCapabilities *pszNetworkCap = NULL;
-
+	
 	pszNetworkCap = (struct ns3__NetworkCapabilities *)soap_malloc(soap, sizeof(struct ns3__NetworkCapabilities));
 	if (NULL == pszNetworkCap) {
   	return SOAP_EOM;
   }
   memset(pszNetworkCap, 0, sizeof(struct ns3__NetworkCapabilities));
-
+  
   enum xsd__boolean *pszXsdTrue = NULL;
   pszXsdTrue = (enum xsd__boolean*)soap_malloc(soap,sizeof(enum xsd__boolean));
   memset(pszXsdTrue, 0, sizeof(enum xsd__boolean));
   *pszXsdTrue = xsd__boolean__true_;
-
+  
   enum xsd__boolean *pszXsdFalse = NULL;
   pszXsdFalse = (enum xsd__boolean*)soap_malloc(soap,sizeof(enum xsd__boolean));
   memset(pszXsdFalse, 0, sizeof(enum xsd__boolean));
   *pszXsdFalse = xsd__boolean__false_;
-
+  
   pszNetworkCap->IPFilter = pszXsdTrue;
   pszNetworkCap->ZeroConfiguration = pszXsdFalse;
   pszNetworkCap->IPVersion6 = pszXsdFalse;
   pszNetworkCap->DynDNS = pszXsdFalse;
-
+  
   pszDevCap->Network = pszNetworkCap;
-
+  
   // SystemCapabilities
   struct ns3__SystemCapabilities *pszSysCap = NULL;
-
+  
   pszSysCap = (struct ns3__SystemCapabilities *)soap_malloc(soap, sizeof(struct ns3__SystemCapabilities));
 	if (NULL == pszSysCap) {
   	return SOAP_EOM;
   }
   memset(pszSysCap, 0, sizeof(struct ns3__SystemCapabilities));
-
+  
   pszSysCap->DiscoveryResolve = *pszXsdFalse;
   pszSysCap->DiscoveryBye = *pszXsdTrue;
   pszSysCap->RemoteDiscovery = *pszXsdFalse;
   pszSysCap->SystemBackup = *pszXsdFalse;
   pszSysCap->SystemLogging = *pszXsdFalse;
   pszSysCap->FirmwareUpgrade = *pszXsdFalse;
-
+  
   // Support Versions
   struct ns3__OnvifVersion *pszOnvifVer = NULL;
-
+  
   pszOnvifVer = (struct ns3__OnvifVersion *)soap_malloc(soap, sizeof(struct ns3__OnvifVersion));
 	if (NULL == pszOnvifVer) {
   	return SOAP_EOM;
   }
   memset(pszOnvifVer, 0, sizeof(struct ns3__OnvifVersion));
-
+  
   pszOnvifVer->Major = 1;
   pszOnvifVer->Minor = 2;
-
+  
   pszSysCap->__sizeSupportedVersions = 1;
   pszSysCap->SupportedVersions = pszOnvifVer;
-
+  
   pszDevCap->System = pszSysCap;
 
   // IO Capabilities
   struct ns3__IOCapabilities *pszIOCap = NULL;
-
+  
   pszIOCap = (struct ns3__IOCapabilities *)soap_malloc(soap, sizeof(struct ns3__IOCapabilities));
 	if (NULL == pszIOCap) {
   	return SOAP_EOM;
   }
   memset(pszIOCap, 0, sizeof(struct ns3__IOCapabilities));
-
+  
   int *pszInputConnectors = NULL;
   pszInputConnectors = (int *)soap_malloc(soap, sizeof(int));
   if (NULL == pszInputConnectors) {
@@ -1230,7 +1926,7 @@ int ResponseDeviceCapabilities(struct soap* soap, struct _ns8__GetCapabilities *
   }
   *pszInputConnectors = 1;
   pszIOCap->InputConnectors = pszInputConnectors;
-
+  
   int *pszRelayOutputs = NULL;
   pszRelayOutputs = (int *)soap_malloc(soap, sizeof(int));
   if (NULL == pszRelayOutputs) {
@@ -1238,18 +1934,18 @@ int ResponseDeviceCapabilities(struct soap* soap, struct _ns8__GetCapabilities *
   }
   *pszRelayOutputs = 1;
   pszIOCap->RelayOutputs = pszRelayOutputs;
-
+  
   pszDevCap->IO = pszIOCap;
-
+  
   // Security Capabilities
   struct ns3__SecurityCapabilities *pszSecurityCap = NULL;
-
+  
   pszSecurityCap = (struct ns3__SecurityCapabilities *)soap_malloc(soap, sizeof(struct ns3__SecurityCapabilities));
 	if (NULL == pszSecurityCap) {
   	return SOAP_EOM;
   }
   memset(pszSecurityCap, 0, sizeof(struct ns3__SecurityCapabilities));
-
+  
   pszSecurityCap->TLS1_x002e1 = *pszXsdFalse;
   pszSecurityCap->TLS1_x002e2 = *pszXsdFalse;
   pszSecurityCap->OnboardKeyGeneration = *pszXsdFalse;
@@ -1258,11 +1954,11 @@ int ResponseDeviceCapabilities(struct soap* soap, struct _ns8__GetCapabilities *
   pszSecurityCap->SAMLToken = *pszXsdFalse;
   pszSecurityCap->KerberosToken = *pszXsdFalse;
   pszSecurityCap->RELToken = *pszXsdFalse;
-
+  
 	pszDevCap->Security = pszSecurityCap;
-
+	
 	pszCap->Device = pszDevCap;
-
+	
 	return SOAP_OK;
 }
 
@@ -1291,7 +1987,7 @@ int ResponseMediaCapabilities(struct soap* soap, struct _ns8__GetCapabilities *n
     mediacapt->StreamingCapabilities = RTstreamcapt;
 
   	pszCap->Media = mediacapt;
-
+	
 	  return SOAP_OK;
 }
 
@@ -1299,16 +1995,16 @@ int ResponseMediaCapabilities(struct soap* soap, struct _ns8__GetCapabilities *n
 int ResponsePTZCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct ns3__Capabilities *pszCap)
 {
 	struct ns3__PTZCapabilities *pszPTZCap = NULL;
-
+	
 	pszPTZCap = (struct ns3__PTZCapabilities *)soap_malloc(soap, sizeof(struct ns3__PTZCapabilities));
 	if (NULL == pszPTZCap) {
 		// Out of memory
 		return SOAP_EOM;
 	}
 	memset(pszPTZCap, 0, sizeof(struct ns3__PTZCapabilities));
-
+	
 	char *pszCapURI = NULL;
-
+	
 	pszCapURI = (char *)soap_malloc(soap, 32*sizeof(char));
 	if (NULL == pszCapURI) {
 		// Out of memory
@@ -1316,11 +2012,11 @@ int ResponsePTZCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8
 	}
 	memset(pszCapURI, 0, 32);
 	snprintf(pszCapURI, 32, "http://%s:8800", GetLocalHostIP());
-
+	
 	pszPTZCap->XAddr = pszCapURI;
-
+	
 	pszCap->PTZ = pszPTZCap;
-
+	
 	return SOAP_OK;
 }
 
@@ -1328,16 +2024,16 @@ int ResponsePTZCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8
 int ResponseImageCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct ns3__Capabilities *pszCap)
 {
 	struct ns3__ImagingCapabilities *pszImgCap = NULL;
-
+	
 	pszImgCap = (struct ns3__ImagingCapabilities *)soap_malloc(soap, sizeof(struct ns3__ImagingCapabilities));
 	if (NULL == pszImgCap) {
 		// Out of memory
 		return SOAP_EOM;
 	}
 	memset(pszImgCap, 0, sizeof(struct ns3__ImagingCapabilities));
-
+	
 	char *pszCapURI = NULL;
-
+	
 	pszCapURI = (char *)soap_malloc(soap, 32*sizeof(char));
 	if (NULL == pszCapURI) {
 		// Out of memory
@@ -1345,11 +2041,11 @@ int ResponseImageCapabilities(struct soap* soap, struct _ns8__GetCapabilities *n
 	}
 	memset(pszCapURI, 0, 32);
 	snprintf(pszCapURI, 32, "http://%s:8800", GetLocalHostIP());
-
+	
 	pszImgCap->XAddr = pszCapURI;
-
+	
 	pszCap->Imaging = pszImgCap;
-
+	
 	return SOAP_OK;
 }
 
@@ -1358,19 +2054,19 @@ int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8_
     printf("%s\n",__FUNCTION__);
     int nRet = SOAP_OK;
     struct ns3__Capabilities *pszCap = NULL;
-
+    
     pszCap = (struct ns3__Capabilities*)soap_malloc(soap,sizeof(struct ns3__Capabilities));
     if (NULL == pszCap) {
     	// Out of memory
 			return SOAP_EOM;
     }
     memset(pszCap, 0, sizeof(struct ns3__Capabilities));
-
+    
     ns8__GetCapabilitiesResponse->Capabilities = pszCap;
-
+    
     // check request type
-    switch (*ns8__GetCapabilities->Category)
-    {
+    switch (*ns8__GetCapabilities->Category) 
+    { 
     	case ns3__CapabilityCategory__All:
     		if (SOAP_OK != ResponseDeviceCapabilities(soap, ns8__GetCapabilities, pszCap) ||
     			  SOAP_OK != ResponseImageCapabilities(soap, ns8__GetCapabilities, pszCap)  ||
@@ -1379,41 +2075,37 @@ int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8_
     			  	return SOAP_FAULT;
     			  }
     		break;
-
+    				
 			case ns3__CapabilityCategory__Analytics:
 				nRet = soap_receiver_fault_subcode(soap, "NoSuchService", "The requested Analytics service category is not supported by the device", NULL);
 				break;
-
+			
 			case ns3__CapabilityCategory__Device:
 				nRet = ResponseDeviceCapabilities(soap, ns8__GetCapabilities, pszCap);
 				break;
-
+				
 			case ns3__CapabilityCategory__Events:
 				nRet = soap_receiver_fault_subcode(soap, "NoSuchService", "The requested Analytics service category is not supported by the device", NULL);
 				break;
-
+					
 			case ns3__CapabilityCategory__Imaging:
 				nRet = ResponseImageCapabilities(soap, ns8__GetCapabilities, pszCap);
 				break;
-
+					
 			case ns3__CapabilityCategory__Media:
 				nRet = ResponseMediaCapabilities(soap, ns8__GetCapabilities, pszCap);
 				break;
-
+						
 			case ns3__CapabilityCategory__PTZ:
 				nRet = ResponsePTZCapabilities(soap, ns8__GetCapabilities, pszCap);
 				break;
-
+    		
       default:
     	  break;
     }
-
+    
     return nRet;
 }
-
-
-
-
 
  int  __ns8__SetDPAddresses(struct soap* soap, struct _ns8__SetDPAddresses *ns8__SetDPAddresses, struct _ns8__SetDPAddressesResponse *ns8__SetDPAddressesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -1425,7 +2117,7 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
     memset(pHostnameInfo,0,sizeof(struct ns3__HostnameInformation));
 	pHostnameInfo->FromDHCP = xsd__boolean__false_;
 	pHostnameInfo->Name = "HUNDA";
-
+    
 	ns8__GetHostnameResponse->HostnameInformation = pHostnameInfo;
     return SOAP_OK;
 }
@@ -1442,77 +2134,11 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 
  int  __ns8__GetDynamicDNS(struct soap* soap, struct _ns8__GetDynamicDNS *ns8__GetDynamicDNS, struct _ns8__GetDynamicDNSResponse *ns8__GetDynamicDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int __ns8__SetDynamicDNS(struct soap* soap,
-		struct _ns8__SetDynamicDNS *ns8__SetDynamicDNS,
-		struct _ns8__SetDynamicDNSResponse *ns8__SetDynamicDNSResponse) {
-	printf("%s\n", __FUNCTION__);
-	return SOAP_OK;
-}
+ int  __ns8__SetDynamicDNS(struct soap* soap, struct _ns8__SetDynamicDNS *ns8__SetDynamicDNS, struct _ns8__SetDynamicDNSResponse *ns8__SetDynamicDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
-char *get_macaddress() {
-	int fd;
-	struct ifreq ifr;
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	ifr.ifr_addr.sa_family = AF_INET;
-	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ - 1);
-	ioctl(fd, SIOCGIFHWADDR, &ifr);
-	/* display result */
-	printf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[0],
-			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[1],
-			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[2],
-			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[3],
-			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[4],
-			(unsigned char) ifr.ifr_ifru.ifru_addr.sa_data[5]);
-	char a[18];
-	int test = 0xab;
+ int  __ns8__GetNetworkInterfaces(struct soap* soap, struct _ns8__GetNetworkInterfaces *ns8__GetNetworkInterfaces, struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
-
-	sprintf(a, "%x\n", test );
-	close(fd);
-
-
-	return "10086";
-}
-
-
-struct ns3__NetworkInterfaceInfo * ns3__GetNetworkInterfaceInfo(struct soap* soap)
-{
-	struct ns3__NetworkInterfaceInfo *info = (struct ns3__NetworkInterfaceInfo*)soap_malloc(soap,sizeof(struct ns3__NetworkInterfaceInfo));
-	memset(info,0,sizeof(struct ns3__NetworkInterfaceInfo));
-	info->HwAddress = get_macaddress();
-	return info;
-}
-
-
-struct ns3__NetworkInterface *__ns3__GetNetworkInterfaces(struct soap* soap)
-{
-	struct ns3__NetworkInterface *NetworkInterfaces = (struct ns3__NetworkInterface*)soap_malloc(soap,sizeof(struct ns3__NetworkInterface));
-	memset(NetworkInterfaces,0,sizeof(struct ns3__NetworkInterface));
-	NetworkInterfaces->Info = ns3__GetNetworkInterfaceInfo(soap);
-	return NetworkInterfaces;
-}
-
-
- int __ns8__GetNetworkInterfaces(
-		struct soap* soap,
-		struct _ns8__GetNetworkInterfaces *ns8__GetNetworkInterfaces,
-		struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse) {
-	printf("%s\n", __FUNCTION__);
-
-	/*
-	json_return *back = get_val("foo->age");
-
-	dele_json_backs(back);
-	set_json_val("Age", "lgh");
-*/
-	ns8__GetNetworkInterfacesResponse->NetworkInterfaces =
-			__ns3__GetNetworkInterfaces(soap);
-	ns8__GetNetworkInterfacesResponse->__sizeNetworkInterfaces = 1;
-    return SOAP_OK;
-}
-
- int  __ns8__SetNetworkInterfaces(struct soap* soap, struct _ns8__SetNetworkInterfaces *ns8__SetNetworkInterfaces, struct _ns8__SetNetworkInterfacesResponse *ns8__csSetNetworkInterfacesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int  __ns8__SetNetworkInterfaces(struct soap* soap, struct _ns8__SetNetworkInterfaces *ns8__SetNetworkInterfaces, struct _ns8__SetNetworkInterfacesResponse *ns8__SetNetworkInterfacesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
  int  __ns8__GetNetworkProtocols(struct soap* soap, struct _ns8__GetNetworkProtocols *ns8__GetNetworkProtocols, struct _ns8__GetNetworkProtocolsResponse *ns8__GetNetworkProtocolsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
