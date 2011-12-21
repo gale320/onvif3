@@ -1,1 +1,97 @@
-{ "item1": "I love JSON", "item3": "We love JSON", "Name": "Andy", "foo": { "age": "wangting" }, "Age": "wangting" }
+{
+  "HostName": {
+    "FromDHCP": "false",
+    "Name": ""
+  },
+  "DNSSettings": {
+    "FromDHCP": "false",
+    "SearchDomain": "",
+    "DNSFromDHCP": "false",
+    "DNSManual": ""
+  },
+  "NTPSettings": {
+    "FromDHCP": "false",
+    "NTPFromDHCP": "",
+    "NTPManual": ""
+  },
+  "DynamicDNSSettings": {
+    "Type": "",
+    "Name": "",
+    "TTL": ""
+  },
+  "networkinterfaceconfiguration": {
+    "NetworkInterface": ""
+  },
+  "networkprotocols": {
+    "NetworkProtocols": ""
+  },
+  "defaultgateway": {
+    "IPv4Address": "",
+    "IPv6Address": ""
+  },
+  "zeroconfiguration": {
+    "InterfaceToken": "",
+    "Enabled": "",
+    "Addresses": ""
+  },
+  "IPaddressfilter": {
+    "Type": "",
+    "IPv4Address": "",
+    "IPv6Address": ""
+  },
+  "Dot11capabilities": {
+    "TKIP": "",
+    "ScanAvailableNetworks": "",
+    "MultipleConfiguration": "",
+    "AdHocStationMode": "",
+    "WEP": ""
+  },
+  "IEEE802.11Status": {
+    "SSID": "",
+    "BSSID": "",
+    "Paircipher": "",
+    "Groupcipher": "",
+    "Signalstrength": "",
+    "Signalstrength": ""
+  },
+  "ScanAvailableIEEE802.11Networks": {
+    "Dot11AvailableNetworks": ""
+  },
+  "DeviceInformation": {
+    "Manufacturer": "",
+    "Model": "",
+    "FirmwareVersion": "",
+    "SerialNumber": "",
+    "HardwareId": ""
+  },
+  "SystemURIs": {
+    "SystemLogUris": "",
+    "SupportInfoUri": "",
+    "SystemBackupUri": ""
+  },
+  "Backup": {
+    "BackupFiles": ""
+  },
+  "Restore": {
+    "BackupFiles": ""
+  },
+  "systemdateandtime": {
+    "DateTimeType": "",
+    "DaylightSavings": "",
+    "TimeZone": "",
+    "UTCDateTime": "",
+    "LocalDateTime": ""
+  },
+  "Factorydefault": {
+    "FactoryDefault": ""
+  },
+  "Firmwareupgrade": {
+    "Client": "",
+    "Firmware": "",
+    "Service": "",
+    "Message": ""
+  },
+  "systemlogs": {
+    "SystemLogType": ""
+  }
+}

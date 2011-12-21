@@ -1,6 +1,5 @@
 
 #include "jsonc.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -1091,6 +1090,9 @@ int __ns8__GetWsdlUrl(struct soap* soap, struct _ns8__GetWsdlUrl *ns8__GetWsdlUr
     return SOAP_OK;
 }
 
+
+
+/*
 int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct _ns8__GetCapabilitiesResponse *ns8__GetCapabilitiesResponse)
 {
     printf("%s\n",__FUNCTION__);
@@ -1120,6 +1122,295 @@ int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8_
     ns8__GetCapabilitiesResponse->Capabilities->Media = mediacapt;
     return SOAP_OK;
 }
+*/
+
+// Media Capabilities
+
+
+// Device Capabilities
+int ResponseDeviceCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct ns3__Capabilities *pszCap)
+{
+	struct ns3__DeviceCapabilities *pszDevCap = NULL;
+
+	pszDevCap = (struct ns3__DeviceCapabilities *)soap_malloc(soap, sizeof(struct ns3__DeviceCapabilities));
+	if (NULL == pszDevCap) {
+		// Out of memory
+		return SOAP_EOM;
+	}
+	memset(pszDevCap, 0, sizeof(struct ns3__DeviceCapabilities));
+
+	// URI
+	char *pszCapURI = NULL;
+
+	pszCapURI = (char *)soap_malloc(soap, 32*sizeof(char));
+	if (NULL == pszCapURI) {
+		// Out of memory
+		return SOAP_EOM;
+	}
+	memset(pszCapURI, 0, 32);
+	snprintf(pszCapURI, 32, "http://%s:8800", GetLocalHostIP());
+
+	pszDevCap->XAddr = pszCapURI;
+
+	// NetworkCapabilities
+	struct ns3__NetworkCapabilities *pszNetworkCap = NULL;
+
+	pszNetworkCap = (struct ns3__NetworkCapabilities *)soap_malloc(soap, sizeof(struct ns3__NetworkCapabilities));
+	if (NULL == pszNetworkCap) {
+  	return SOAP_EOM;
+  }
+  memset(pszNetworkCap, 0, sizeof(struct ns3__NetworkCapabilities));
+
+  enum xsd__boolean *pszXsdTrue = NULL;
+  pszXsdTrue = (enum xsd__boolean*)soap_malloc(soap,sizeof(enum xsd__boolean));
+  memset(pszXsdTrue, 0, sizeof(enum xsd__boolean));
+  *pszXsdTrue = xsd__boolean__true_;
+
+  enum xsd__boolean *pszXsdFalse = NULL;
+  pszXsdFalse = (enum xsd__boolean*)soap_malloc(soap,sizeof(enum xsd__boolean));
+  memset(pszXsdFalse, 0, sizeof(enum xsd__boolean));
+  *pszXsdFalse = xsd__boolean__false_;
+
+  pszNetworkCap->IPFilter = pszXsdTrue;
+  pszNetworkCap->ZeroConfiguration = pszXsdFalse;
+  pszNetworkCap->IPVersion6 = pszXsdFalse;
+  pszNetworkCap->DynDNS = pszXsdFalse;
+
+  pszDevCap->Network = pszNetworkCap;
+
+  // SystemCapabilities
+  struct ns3__SystemCapabilities *pszSysCap = NULL;
+
+  pszSysCap = (struct ns3__SystemCapabilities *)soap_malloc(soap, sizeof(struct ns3__SystemCapabilities));
+	if (NULL == pszSysCap) {
+  	return SOAP_EOM;
+  }
+  memset(pszSysCap, 0, sizeof(struct ns3__SystemCapabilities));
+
+  pszSysCap->DiscoveryResolve = *pszXsdFalse;
+  pszSysCap->DiscoveryBye = *pszXsdTrue;
+  pszSysCap->RemoteDiscovery = *pszXsdFalse;
+  pszSysCap->SystemBackup = *pszXsdFalse;
+  pszSysCap->SystemLogging = *pszXsdFalse;
+  pszSysCap->FirmwareUpgrade = *pszXsdFalse;
+
+  // Support Versions
+  struct ns3__OnvifVersion *pszOnvifVer = NULL;
+
+  pszOnvifVer = (struct ns3__OnvifVersion *)soap_malloc(soap, sizeof(struct ns3__OnvifVersion));
+	if (NULL == pszOnvifVer) {
+  	return SOAP_EOM;
+  }
+  memset(pszOnvifVer, 0, sizeof(struct ns3__OnvifVersion));
+
+  pszOnvifVer->Major = 1;
+  pszOnvifVer->Minor = 2;
+
+  pszSysCap->__sizeSupportedVersions = 1;
+  pszSysCap->SupportedVersions = pszOnvifVer;
+
+  pszDevCap->System = pszSysCap;
+
+  // IO Capabilities
+  struct ns3__IOCapabilities *pszIOCap = NULL;
+
+  pszIOCap = (struct ns3__IOCapabilities *)soap_malloc(soap, sizeof(struct ns3__IOCapabilities));
+	if (NULL == pszIOCap) {
+  	return SOAP_EOM;
+  }
+  memset(pszIOCap, 0, sizeof(struct ns3__IOCapabilities));
+
+  int *pszInputConnectors = NULL;
+  pszInputConnectors = (int *)soap_malloc(soap, sizeof(int));
+  if (NULL == pszInputConnectors) {
+  	return SOAP_EOM;
+  }
+  *pszInputConnectors = 1;
+  pszIOCap->InputConnectors = pszInputConnectors;
+
+  int *pszRelayOutputs = NULL;
+  pszRelayOutputs = (int *)soap_malloc(soap, sizeof(int));
+  if (NULL == pszRelayOutputs) {
+  	return SOAP_EOM;
+  }
+  *pszRelayOutputs = 1;
+  pszIOCap->RelayOutputs = pszRelayOutputs;
+
+  pszDevCap->IO = pszIOCap;
+
+  // Security Capabilities
+  struct ns3__SecurityCapabilities *pszSecurityCap = NULL;
+
+  pszSecurityCap = (struct ns3__SecurityCapabilities *)soap_malloc(soap, sizeof(struct ns3__SecurityCapabilities));
+	if (NULL == pszSecurityCap) {
+  	return SOAP_EOM;
+  }
+  memset(pszSecurityCap, 0, sizeof(struct ns3__SecurityCapabilities));
+
+  pszSecurityCap->TLS1_x002e1 = *pszXsdFalse;
+  pszSecurityCap->TLS1_x002e2 = *pszXsdFalse;
+  pszSecurityCap->OnboardKeyGeneration = *pszXsdFalse;
+  pszSecurityCap->AccessPolicyConfig = *pszXsdFalse;
+  pszSecurityCap->X_x002e509Token = *pszXsdFalse;
+  pszSecurityCap->SAMLToken = *pszXsdFalse;
+  pszSecurityCap->KerberosToken = *pszXsdFalse;
+  pszSecurityCap->RELToken = *pszXsdFalse;
+
+	pszDevCap->Security = pszSecurityCap;
+
+	pszCap->Device = pszDevCap;
+
+	return SOAP_OK;
+}
+
+// Media Capabilities
+int ResponseMediaCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct ns3__Capabilities *pszCap)
+{
+	  struct ns3__RealTimeStreamingCapabilities *RTstreamcapt;
+    RTstreamcapt = (struct ns3__RealTimeStreamingCapabilities*)soap_malloc(soap,sizeof(struct ns3__RealTimeStreamingCapabilities));
+    memset(RTstreamcapt,0,sizeof(struct ns3__RealTimeStreamingCapabilities));
+    enum xsd__boolean * rt;
+    rt = (enum xsd__boolean*)soap_malloc(soap,sizeof(enum xsd__boolean));
+    memset(rt,0,sizeof(enum xsd__boolean));
+    *rt = xsd__boolean__false_;
+    RTstreamcapt->RTPMulticast = rt;
+    RTstreamcapt->RTP_USCORETCP= rt;
+    RTstreamcapt->RTP_USCORERTSP_USCORETCP= rt;
+
+    struct ns3__MediaCapabilities *mediacapt;
+    mediacapt = (struct ns3__MediaCapabilities*)soap_malloc(soap,sizeof(struct ns3__MediaCapabilities));
+    memset(mediacapt,0,sizeof(struct ns3__MediaCapabilities));
+    char *cap_uri;
+    cap_uri = (char*)soap_malloc(soap,32*sizeof(char));
+    snprintf(cap_uri,32,"http://%s:8800",GetLocalHostIP());
+    printf("in capabilities Xaddr=%s\n",cap_uri);
+    mediacapt->XAddr = cap_uri;
+    mediacapt->StreamingCapabilities = RTstreamcapt;
+
+  	pszCap->Media = mediacapt;
+
+	  return SOAP_OK;
+}
+
+// PTZ Capabilities
+int ResponsePTZCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct ns3__Capabilities *pszCap)
+{
+	struct ns3__PTZCapabilities *pszPTZCap = NULL;
+
+	pszPTZCap = (struct ns3__PTZCapabilities *)soap_malloc(soap, sizeof(struct ns3__PTZCapabilities));
+	if (NULL == pszPTZCap) {
+		// Out of memory
+		return SOAP_EOM;
+	}
+	memset(pszPTZCap, 0, sizeof(struct ns3__PTZCapabilities));
+
+	char *pszCapURI = NULL;
+
+	pszCapURI = (char *)soap_malloc(soap, 32*sizeof(char));
+	if (NULL == pszCapURI) {
+		// Out of memory
+		return SOAP_EOM;
+	}
+	memset(pszCapURI, 0, 32);
+	snprintf(pszCapURI, 32, "http://%s:8800", GetLocalHostIP());
+
+	pszPTZCap->XAddr = pszCapURI;
+
+	pszCap->PTZ = pszPTZCap;
+
+	return SOAP_OK;
+}
+
+// Image Capabilities
+int ResponseImageCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct ns3__Capabilities *pszCap)
+{
+	struct ns3__ImagingCapabilities *pszImgCap = NULL;
+
+	pszImgCap = (struct ns3__ImagingCapabilities *)soap_malloc(soap, sizeof(struct ns3__ImagingCapabilities));
+	if (NULL == pszImgCap) {
+		// Out of memory
+		return SOAP_EOM;
+	}
+	memset(pszImgCap, 0, sizeof(struct ns3__ImagingCapabilities));
+
+	char *pszCapURI = NULL;
+
+	pszCapURI = (char *)soap_malloc(soap, 32*sizeof(char));
+	if (NULL == pszCapURI) {
+		// Out of memory
+		return SOAP_EOM;
+	}
+	memset(pszCapURI, 0, 32);
+	snprintf(pszCapURI, 32, "http://%s:8800", GetLocalHostIP());
+
+	pszImgCap->XAddr = pszCapURI;
+
+	pszCap->Imaging = pszImgCap;
+
+	return SOAP_OK;
+}
+
+int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct _ns8__GetCapabilitiesResponse *ns8__GetCapabilitiesResponse)
+{
+    printf("%s\n",__FUNCTION__);
+    int nRet = SOAP_OK;
+    struct ns3__Capabilities *pszCap = NULL;
+
+    pszCap = (struct ns3__Capabilities*)soap_malloc(soap,sizeof(struct ns3__Capabilities));
+    if (NULL == pszCap) {
+    	// Out of memory
+			return SOAP_EOM;
+    }
+    memset(pszCap, 0, sizeof(struct ns3__Capabilities));
+
+    ns8__GetCapabilitiesResponse->Capabilities = pszCap;
+
+    // check request type
+    switch (*ns8__GetCapabilities->Category)
+    {
+    	case ns3__CapabilityCategory__All:
+    		if (SOAP_OK != ResponseDeviceCapabilities(soap, ns8__GetCapabilities, pszCap) ||
+    			  SOAP_OK != ResponseImageCapabilities(soap, ns8__GetCapabilities, pszCap)  ||
+    			  SOAP_OK != ResponseMediaCapabilities(soap, ns8__GetCapabilities, pszCap)  ||
+    			  SOAP_OK != ResponsePTZCapabilities(soap, ns8__GetCapabilities, pszCap)) {
+    			  	return SOAP_FAULT;
+    			  }
+    		break;
+
+			case ns3__CapabilityCategory__Analytics:
+				nRet = soap_receiver_fault_subcode(soap, "NoSuchService", "The requested Analytics service category is not supported by the device", NULL);
+				break;
+
+			case ns3__CapabilityCategory__Device:
+				nRet = ResponseDeviceCapabilities(soap, ns8__GetCapabilities, pszCap);
+				break;
+
+			case ns3__CapabilityCategory__Events:
+				nRet = soap_receiver_fault_subcode(soap, "NoSuchService", "The requested Analytics service category is not supported by the device", NULL);
+				break;
+
+			case ns3__CapabilityCategory__Imaging:
+				nRet = ResponseImageCapabilities(soap, ns8__GetCapabilities, pszCap);
+				break;
+
+			case ns3__CapabilityCategory__Media:
+				nRet = ResponseMediaCapabilities(soap, ns8__GetCapabilities, pszCap);
+				break;
+
+			case ns3__CapabilityCategory__PTZ:
+				nRet = ResponsePTZCapabilities(soap, ns8__GetCapabilities, pszCap);
+				break;
+
+      default:
+    	  break;
+    }
+
+    return nRet;
+}
+
+
+
+
 
  int  __ns8__SetDPAddresses(struct soap* soap, struct _ns8__SetDPAddresses *ns8__SetDPAddresses, struct _ns8__SetDPAddressesResponse *ns8__SetDPAddressesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -1206,10 +1497,12 @@ struct ns3__NetworkInterface *__ns3__GetNetworkInterfaces(struct soap* soap)
 		struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse) {
 	printf("%s\n", __FUNCTION__);
 
+	/*
 	json_return *back = get_val("foo->age");
+
 	dele_json_backs(back);
 	set_json_val("Age", "lgh");
-
+*/
 	ns8__GetNetworkInterfacesResponse->NetworkInterfaces =
 			__ns3__GetNetworkInterfaces(soap);
 	ns8__GetNetworkInterfacesResponse->__sizeNetworkInterfaces = 1;
