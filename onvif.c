@@ -23,21 +23,173 @@ typedef struct ONVIF_FIFO_Comand_s
 }	ONVIF_FIFO_Comand_t;
 
 
+
+
+/*************************è°Œåº†äº‘**********************/
+#define NETWORK_FILE "/etc/network/interfaces"
+#define IMAGE_FILE   "/etc/ambaipcam/IPC_Q313/config/UIImage.cfg"
+#define IMAGE_FIFO   "/dev/Fifo_WTE"
+#define ENCODE_FILE   "/etc/ambaipcam/IPC_Q313/config/Encode.cfg"
+#define NTP_TIME    "/etc/ambaipcam/IPC_Q313/config/NTPaddr.txt"
+
+/********************************* Defines ************************************/
+
+#define		NONE_OPTION		T("<NONE>")
+#define		MSG_START		T("<body><h2>")
+#define		MSG_END			T("</h2></body>")
+#define	WTA_IMAGE_QULITY_SET					0x01
+
+#define	WTA_IMGQU_HUA_SET						0x01	//É«ï¿½ï¿½
+#define	WTA_IMGQU_BRIGHT_SET					0x02	//ï¿½ï¿½ï¿½ï¿½
+#define	WTA_IMGQU_CONTRAST_SET				0x03	//ï¿½Ô±È¶ï¿½
+#define	WTA_IMGQU_SATURATION_SET				0x04	//ï¿½ï¿½ï¿½Í¶ï¿½
+#define	WTA_IMGQU_SHARP_SET					0x05	//ï¿½ï¿½ï¿½
+#define	WTA_IMGQU_MCTF_FILTER_SET				0x06	//ï¿½ï¿½ï¿½ï¿½
+#define	WTA_IMGQU_FACTORY_SET					0x07	//ï¿½Ö¸ï¿½Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+
+#define	WTA_AE_METER_MODE_SET					0x08	//ï¿½Ø¹ï¿½Ä£Ê½
+#define	WTA_AE_EV_SET							0x09	//ï¿½Ø¹â²¹ï¿½ï¿½
+#define	WTA_AE_SHUTTER_RANG_SET				0x0A	//ï¿½ï¿½ï¿½Å·ï¿½Î§
+#define	WTA_BACKLIGHT_SET						0x0B	//ï¿½ï¿½ï¿½â²¹ï¿½ï¿½
+#define	WTA_ANTIFLICKER_SET						0x0C	//Æµï¿½ï¿½
+
+
+#define	CPCOUNT					12	//Òªï¿½ï¿½ï¿½Ä¸ï¿½ï¿½ï¿½
+FILE *imagefp;
+FILE *encodefp;
+
+typedef struct ui_exposure_set_s{
+	int enable_ae;					//onvif 0-manual, 1-auto
+	int exposure_mode;			//onvif window ï¿½ï¿½AE_SPOT_METERING = 0,	AE_CENTER_METERING,  ï¿½Ø¹ï¿½Ä£Ê½
+													//AE_AVERAGE_METERING,	AE_CUSTOM_METERING,	AE_METERING_TYPE_NUMBER,
+	int exposure_level;			//EV 0ï¿½ï¿½8ï¿½ï¿½-3ï¿½ï¿½4ï¿½ï¿½              ï¿½Ø¹â²¹ï¿½ï¿½
+	int	anti_flicker_mode;	//ANTI_FLICKER_50HZ			= 0,	ANTI_FLICKER_60HZ			= 1,
+
+	int slow_shutter_enable;//0-disable, 1-enable     ï¿½ï¿½ï¿½Ó¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+
+	int	shutter_time_min; 	//onvif 1~8000         ï¿½ï¿½ï¿½Ó¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+	int	shutter_time_max; 	//onvif 1~8000          ï¿½ï¿½ï¿½Ó¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
+	int	shutter_time_fixed;	//onvif 1~8000
+
+	int	sensor_gain_min;		//onvif   ISO_100	 = 0,	//0db
+																	//ISO_150 = 3,
+																	//ISO_200 = 6,	//6db
+																	//ISO_300 = 9,
+																	//ISO_400 = 12,	//12db
+																	//ISO_600 = 15,
+																	//ISO_800 = 18,	//18db
+																	//ISO_1600 = 24,	//24db
+																	//ISO_3200 = 30,	//30db
+																	//ISO_6400 = 36,	//36db
+																	//ISO_12800 = 42,	//42db
+																	//ISO_25600 = 48,	//48db
+																	//ISO_51200 = 54,	//54db
+																	//ISO_102400 = 60,//60db
+	int	sensor_gain_max;		//onvif Í¬ï¿½ï¿½
+	int	sensor_gain_fixed;	//onvif Í¬ï¿½ï¿½
+
+	int enable_autoiris;		//onvif 0-AURO_DCIRIS, 1-manual
+	int iris_min;						//onvif
+	int iris_max;						//onvif
+	int iris;								//onvif 0dB-full_open, 1-5
+}ui_exposure_set_t;
+
+typedef struct ui_focus_set_s{
+	int enable_af;					//onvif 0-manual, 1-auto
+	int near_limit;					//onvif
+	int far_limit;					//onvif
+	int near;								//onvif
+	int far;								//onvif
+}ui_focus_set_t;
+
+typedef struct ui_ircut_set_s{
+	int enable_autoircut;		//onvif 0-manual, 1-auto
+	int near_limit;					//onvif
+	int far_limit;					//onvif
+	int near;								//onvif
+	int far;								//onvif
+}ui_ircut_set_t;
+
+typedef struct ui_whitebalance_set_s{
+	int enable_awb;					//onvif  0-auto, 1-manual
+	int Rgain;							//onvif
+	int Bgain;							//onvif
+}ui_whitebalance_set_t;
+
+typedef struct ui_image_set_s{
+	int backlight;					//onvif 0-disable, 1-enable  ï¿½ï¿½ï¿½ï¿½
+	int color_style;				//0~3  IMG_COLOR_TV = 0,	IMG_COLOR_PC,	IMG_COLOR_STILL,	IMG_COLOR_CUSTOM,	IMG_COLOR_NUMBER,
+	int color_hue;					//0~31 (-15 - +15)     É«ï¿½ï¿½
+	int brightness;					//onvif 0~255 (-255 - +255)   ï¿½ï¿½ï¿½ï¿½
+	int contrast;						//onvif 0~255 (unit = 64 ï¿½ï¿½128 is X2 valid rang:0ï¿½ï¿½256)  ï¿½Ô±È¶ï¿½
+	int saturation;					//onvif 0~255 (unit = 64ï¿½ï¿½128 is X2 valid rang:0ï¿½ï¿½256)   ï¿½ï¿½ï¿½Í¶ï¿½
+	int sharpness;					//onvif 0~255 (unit = 128ï¿½ï¿½256 is X2 valid rang:0ï¿½ï¿½256)   ï¿½ï¿½ï¿½ï¿½ï¿½
+	int mctf_strength;			//unit = 32,64 is X2  valid rang:0 - 512   ï¿½ï¿½ï¿½ï¿½
+
+	ui_exposure_set_t exposure_set;                   //ï¿½Ø¹ï¿½ï¿½ï¿½ï¿½ï¿½
+	ui_focus_set_t focus_set;
+
+	int ir_cut;						//onvif 0-auto, 1-on,	2-off
+
+	ui_whitebalance_set_t whitebalance_set;
+
+	int WDR;						//onvif 0-on,	1-off
+}ui_image_set_t;
+
+typedef struct wta_fifocmd_s
+{
+	unsigned char Cmdhead;		//0x0A
+	unsigned char Cmd_ver;		//0x01
+	unsigned char Cmd_ID;
+	unsigned char Cmd_Para[12];
+	unsigned char Cmd_check;	//0x00
+}	wta_fifocmd_t;
+
+ui_image_set_t simg_t;
+
+
+typedef struct encode_s
+{
+	char type[50];             //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	int definition;            //ï¿½ï¿½ï¿½ï¿½ï¿½
+	int frame_rate;            //Ö¡ï¿½ï¿½
+	int frame_rate_time;       //Ö¡ï¿½ï¿½ï¿½
+	int code_rate_contral;     //ï¿½ï¿½ï¿½Ê¿ï¿½ï¿½ï¿½
+	int code_rate;             //ï¿½ï¿½ï¿½ï¿½
+	int rotate;                //ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½
+	int quality;               //ï¿½ï¿½ï¿½ï¿½
+	int text_judge;            //
+}encode_t;
+
+encode_t encode_set[4];
+
+const char *FIFO_Web_Encode = "/dev/Fifo_WTE";
+
+/*************************è°Œåº†äº‘**********************/
+
+
+
+
+
+
+
+
+
 /**************************************************************
-º¯Êý¹¦ÄÜ£º´´½¨Í¨Ñ¶FIFO²¢³õÊ¼»¯
-FiFoInit()µÄÄÚ²¿×Óº¯Êý
-²ÎÊý£º
-(Èë¿Ú)
-const char *fifopath  ´´½¨fifoµÄÏµÍ³Â·¾¶
-int *fifofd           FIFO ÃèÊö·û
-(³ö¿Ú)ÎÞ
-·µ»Ø£º(int)  1,³É¹¦; -1,Ê§°Ü
+ï¿½ï¿½ï¿½ï¿½ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½Í¨Ñ¶FIFOï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½
+FiFoInit()ï¿½ï¿½ï¿½Ú²ï¿½ï¿½Óºï¿½ï¿½ï¿½
+ï¿½ï¿½ï¿½ï¿½
+(ï¿½ï¿½ï¿½)
+const char *fifopath  ï¿½ï¿½ï¿½ï¿½fifoï¿½ï¿½ÏµÍ³Â·ï¿½ï¿½
+int *fifofd           FIFO ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+(ï¿½ï¿½ï¿½ï¿½)ï¿½ï¿½
+ï¿½ï¿½ï¿½Ø£ï¿½(int)  1,ï¿½É¹ï¿½; -1,Ê§ï¿½ï¿½
 
-°üº¬Í·ÎÄ¼þ£º <unistd.h> <sys/types.h> <sys/stat.h> <fcntl.h>
-Ö÷ÒªË¼Â·£º
-µ÷ÓÃ·½·¨: FiFoInit()µ÷ÓÃ
+ï¿½ï¿½Í·ï¿½Ä¼ï¿½ï¿½ï¿½ <unistd.h> <sys/types.h> <sys/stat.h> <fcntl.h>
+ï¿½ï¿½ÒªË¼Â·ï¿½ï¿½
+ï¿½ï¿½ï¿½Ã·ï¿½ï¿½ï¿½: FiFoInit()ï¿½ï¿½ï¿½ï¿½
 
-´´½¨ÈÕÆÚ:2007/7/13
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½:2007/7/13
 ****************************************************************/
 int SingleFifoinit(const char *fifopath, int *fifofd, int nMode)
 {
@@ -200,11 +352,11 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     memset(pWhiteBalance,0,sizeof(struct ns3__WhiteBalance20));
     memset(pWideDynamicRange,0,sizeof(struct ns3__WideDynamicRange20));
 
-    //±³¹â²¹³¥
+    //ï¿½ï¿½ï¿½â²¹ï¿½ï¿½
     pBacklightCompensation->Mode = ns3__BacklightCompensationMode__OFF;
     pBacklightCompensation->Level= &a10086;//0
 
-    //ÆØ¹âÊ±¼ä
+    //ï¿½Ø¹ï¿½Ê±ï¿½ï¿½
     pExposure->Mode = ns3__ExposureMode__AUTO;
     #if 0
     struct ns3__Rectangle *pWindow;
@@ -232,7 +384,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pExposure->ExposureTime = &a10086;
     #endif
 
-    //¾Û½¹
+    //ï¿½Û½ï¿½
     pFocusConfiguration->AutoFocusMode = ns3__AutoFocusMode__MANUAL;
     #if 0
     pFocusConfiguration->DefaultSpeed = &a10086;
@@ -241,11 +393,11 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     #endif
     //ircut filter
     *pIrCutFilter = ns3__IrCutFilterMode__AUTO;
-    //°×Æ½ºâ
+    //ï¿½ï¿½Æ½ï¿½ï¿½
     pWhiteBalance->Mode = ns3__WhiteBalanceMode__AUTO;
     //pWhiteBalance->CrGain = &a10086;
     //pWhiteBalance->CbGain = &a10086;
-    //¿í¶¯Ì¬·ù¶È
+    //ï¿½?Ì¬ï¿½ï¿½ï¿½
     pWideDynamicRange->Mode = ns3__WideDynamicMode__ON;
     pWideDynamicRange->Level= &a10086;//0
     
@@ -267,11 +419,39 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     return SOAP_OK;
 }
 
-int __ns12__SetImagingSettings(struct soap* soap, struct _ns12__SetImagingSettings *ns12__SetImagingSettings, struct _ns12__SetImagingSettingsResponse *ns12__SetImagingSettingsResponse)
-{
-    printf("%s\n",__FUNCTION__);
-    
-    return SOAP_OK;
+int setfifoimage(unsigned char Fifo_ID, unsigned char imgID, int imgvalue) {
+
+	wta_fifocmd_t imagefifo;
+	imagefifo.Cmdhead = 0x01;
+	imagefifo.Cmd_ver = 0x01;
+	imagefifo.Cmd_ID = Fifo_ID;
+	imagefifo.Cmd_Para[0] = imgID;
+	imagefifo.Cmd_Para[1] = imgvalue;
+	imagefifo.Cmd_check = 0x00;
+	int real_wnum = 0;
+	int fifo_fd = open(IMAGE_FIFO, O_WRONLY, 0);
+	printf("fifo: %d\n", fifo_fd);
+	if (fifo_fd)
+
+		real_wnum = write(fifo_fd, &imagefifo, sizeof(wta_fifocmd_t));
+	if (real_wnum == -1)
+		printf("write to fifo error; try later real_wnum=%d\n", real_wnum);
+	else
+		printf("real write num is %d\n", real_wnum);
+	printf("Cmd_Para[0]:%d\n", imagefifo.Cmd_Para[0]);
+	printf("Cmd_Para[1]:%d\n", imagefifo.Cmd_Para[1]);
+
+	close(fifo_fd);
+}
+
+
+int __ns12__SetImagingSettings(
+		struct soap* soap,
+		struct _ns12__SetImagingSettings *ns12__SetImagingSettings,
+		struct _ns12__SetImagingSettingsResponse *ns12__SetImagingSettingsResponse) {
+	printf("%s\n", __FUNCTION__);
+	setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_BRIGHT_SET, 100);
+	return SOAP_OK;
 }
 
 int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOptions, struct _ns12__GetOptionsResponse *ns12__GetOptionsResponse)
@@ -2136,7 +2316,15 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 
  int  __ns8__SetDynamicDNS(struct soap* soap, struct _ns8__SetDynamicDNS *ns8__SetDynamicDNS, struct _ns8__SetDynamicDNSResponse *ns8__SetDynamicDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns8__GetNetworkInterfaces(struct soap* soap, struct _ns8__GetNetworkInterfaces *ns8__GetNetworkInterfaces, struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int __ns8__GetNetworkInterfaces(
+		struct soap* soap,
+		struct _ns8__GetNetworkInterfaces *ns8__GetNetworkInterfaces,
+		struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse) {
+	printf("%s\n", __FUNCTION__);
+	int brints = 100;
+//setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_BRIGHT_SET, brints);
+	return SOAP_OK;
+}
 
  int  __ns8__SetNetworkInterfaces(struct soap* soap, struct _ns8__SetNetworkInterfaces *ns8__SetNetworkInterfaces, struct _ns8__SetNetworkInterfacesResponse *ns8__SetNetworkInterfacesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
