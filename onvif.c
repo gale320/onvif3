@@ -331,6 +331,8 @@ int __ns1__GetVideoSources(struct soap* soap,struct _ns2__GetVideoSources *ns2__
 int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettings *ns12__GetImagingSettings, struct _ns12__GetImagingSettingsResponse *ns12__GetImagingSettingsResponse)
 {
     printf("%s\n",__FUNCTION__);
+
+/*
     float a10086 = 0.0;
     
     struct ns3__BacklightCompensation20* pBacklightCompensation;
@@ -416,6 +418,7 @@ int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettin
     pImagingSettings20->WideDynamicRange = pWideDynamicRange;
     
     ns12__GetImagingSettingsResponse->ImagingSettings = pImagingSettings20;
+    */
     return SOAP_OK;
 }
 
@@ -450,7 +453,35 @@ int __ns12__SetImagingSettings(
 		struct _ns12__SetImagingSettings *ns12__SetImagingSettings,
 		struct _ns12__SetImagingSettingsResponse *ns12__SetImagingSettingsResponse) {
 	printf("%s\n", __FUNCTION__);
-	setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_BRIGHT_SET, 100);
+	if (ns12__SetImagingSettings->ImagingSettings->Brightness != NULL) {
+		setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_BRIGHT_SET,
+				(int) *ns12__SetImagingSettings->ImagingSettings->Brightness); //亮度 0~255 (-255 - +255)
+	}
+
+	if (ns12__SetImagingSettings->ImagingSettings->Contrast != NULL) {
+		setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_CONTRAST_SET,
+				(int) *ns12__SetImagingSettings->ImagingSettings->Contrast); //对比度 onvif 0~255 (unit = 64 ，128 is X2 valid rang:0～256)
+	}
+
+	if (ns12__SetImagingSettings->ImagingSettings->ColorSaturation != NULL) {
+		setfifoimage(
+				WTA_IMAGE_QULITY_SET,
+				WTA_IMGQU_SATURATION_SET,
+				(int) *ns12__SetImagingSettings->ImagingSettings->ColorSaturation); //饱和度 onvif 0~255 (unit = 64，128 is X2 valid rang:0～256)
+	}
+
+	if (ns12__SetImagingSettings->ImagingSettings->Sharpness != NULL) {
+		setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_SHARP_SET,
+				(int) *ns12__SetImagingSettings->ImagingSettings->Sharpness); //锐度 onvif 0~255 (unit = 128，256 is X2 valid rang:0～256)
+	}
+
+	if (ns12__SetImagingSettings->ImagingSettings->BacklightCompensation != NULL) {
+		setfifoimage(
+				WTA_IMAGE_QULITY_SET,
+				WTA_BACKLIGHT_SET,
+				(int) ns12__SetImagingSettings->ImagingSettings->BacklightCompensation->Mode); //背光补偿 关/开
+	}
+
 	return SOAP_OK;
 }
 
