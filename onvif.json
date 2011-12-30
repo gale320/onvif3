@@ -11,7 +11,7 @@
 			"Used":	false
 		}],
 	"ImagingSettings": {
-	           "Brightness":11,
+	           "Brightness":"11",
 	           "ColorSaturation":12,
 	           "Sharpness":13,
 	           "Contrast":14
