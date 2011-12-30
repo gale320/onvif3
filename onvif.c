@@ -169,7 +169,7 @@ const char *FIFO_Web_Encode = "/dev/Fifo_WTE";
 /*************************谌庆云**********************/
 
 
-
+static void set_image_Exposure(struct _ns12__SetImagingSettings *ns12__SetImagingSettings );
 
 
 
@@ -483,7 +483,67 @@ int __ns12__SetImagingSettings(
 				(int) ns12__SetImagingSettings->ImagingSettings->BacklightCompensation->Mode); //背光补偿 关/开
 	}
 
+	if (ns12__SetImagingSettings->ImagingSettings->Exposure != NULL) {
+		set_image_Exposure(ns12__SetImagingSettings);
+	}
 	return SOAP_OK;
+}
+
+void shutterfifo( unsigned char Fifo_ID,unsigned char imgID,char *imagevalue, int nValLen)
+{
+	wta_fifocmd_t imagefifo;
+	imagefifo.Cmdhead=0x01;
+	imagefifo.Cmd_ver=0x01;
+	imagefifo.Cmd_ID=Fifo_ID;
+	imagefifo.Cmd_Para[0]=imgID;
+	memcpy(imagefifo.Cmd_Para + 1, imagevalue, nValLen);
+	imagefifo.Cmd_check=0x00;
+	int real_wnum = 0;
+	int fifo_fd = open(IMAGE_FIFO,O_WRONLY,0);
+	printf("fifo: %d\n", fifo_fd);
+	if(fifo_fd)
+  	{
+    	 real_wnum = write(fifo_fd,&imagefifo,sizeof(wta_fifocmd_t));
+    	 if(real_wnum==-1)
+        	 printf("write to fifo error; try later real_wnum=%d\n",real_wnum);
+    	 else
+        	 printf("real write num is %d\n",real_wnum);
+        	 printf("Cmd_Para[0]:%d\n",imagefifo.Cmd_Para[0]);
+       close(fifo_fd);
+  	}
+}
+
+static void set_image_Exposure(
+		struct _ns12__SetImagingSettings *ns12__SetImagingSettings) {
+	char shutterTmp[12] = { 0 };
+
+	setfifoimage(WTA_IMAGE_QULITY_SET, WTA_AE_METER_MODE_SET,
+			(int) ns12__SetImagingSettings->ImagingSettings->Exposure->Mode); //曝光设置
+	if (ns12__SetImagingSettings->ImagingSettings->Exposure->Mode //自动模式设置
+	== ns3__ExposureMode__AUTO) {
+		if (ns12__SetImagingSettings->ImagingSettings->Exposure->Iris != NULL) {
+			setfifoimage(
+					WTA_IMAGE_QULITY_SET,
+					WTA_AE_EV_SET,
+					(int) *ns12__SetImagingSettings->ImagingSettings->Exposure->Iris); //曝光设置
+		}
+
+		if (ns12__SetImagingSettings->ImagingSettings->Exposure->MinExposureTime
+				!= NULL) {
+			int nTmp = 0;
+			nTmp = htonl((int)*ns12__SetImagingSettings->ImagingSettings->Exposure->MinExposureTime);
+			memcpy(shutterTmp, &nTmp, 4);
+			nTmp = htonl((int)*ns12__SetImagingSettings->ImagingSettings->Exposure->MaxExposureTime);
+			memcpy(shutterTmp + 4, &nTmp, 4);
+			nTmp = htonl(1);
+			memcpy(shutterTmp + 8, &nTmp, 4);
+			shutterfifo(WTA_IMAGE_QULITY_SET, WTA_AE_SHUTTER_RANG_SET,
+					shutterTmp, CPCOUNT);
+		}
+
+	} else {
+
+	}
 }
 
 int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOptions, struct _ns12__GetOptionsResponse *ns12__GetOptionsResponse)
