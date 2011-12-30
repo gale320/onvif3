@@ -476,7 +476,12 @@ int __ns12__GetImagingSettings(
 			sizeof(struct ns3__ImagingSettings20));
 	memset(pImagingSettings20, 0, sizeof(struct ns3__ImagingSettings20));
 	ns12__GetImagingSettingsResponse->ImagingSettings = pImagingSettings20;
+
 	pImagingSettings20->Brightness = get_json_valude(soap, "Brightness", "ImagingSettings");
+	pImagingSettings20->ColorSaturation = get_json_valude(soap, "ColorSaturation", "ImagingSettings");
+
+	pImagingSettings20->Contrast = get_json_valude(soap, "Contrast", "ImagingSettings");
+	pImagingSettings20->Sharpness = get_json_valude(soap, "Sharpness", "ImagingSettings");
 
 	return SOAP_OK;
 }
@@ -512,9 +517,29 @@ int __ns12__SetImagingSettings(
 		struct _ns12__SetImagingSettings *ns12__SetImagingSettings,
 		struct _ns12__SetImagingSettingsResponse *ns12__SetImagingSettingsResponse) {
 	printf("%s\n", __FUNCTION__);
+
+
 	if (ns12__SetImagingSettings->ImagingSettings->Brightness != NULL) {
 		setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_BRIGHT_SET,
 				(int) *ns12__SetImagingSettings->ImagingSettings->Brightness); //亮度 0~255 (-255 - +255)
+
+		cJSON *root = NULL;
+		cJSON *pPreset = NULL;
+		cJSON *pNode = NULL;
+		cJSON *pVal = NULL;
+		char *pszBuf = NULL;
+		int nRet = 0;
+		nRet = cJSON_FromFile("./onvif.json", &root, &pszBuf);
+		pPreset = cJSON_GetObjectItem(root, "ImagingSettings");
+		pNode = cJSON_GetArrayItem(pPreset, 0);
+		char me[10];
+		gcvt(*ns12__SetImagingSettings->ImagingSettings->Brightness,4,me);
+		//sprintf(me, "%f", *ns12__SetImagingSettings->ImagingSettings->Brightness);
+		cJSON_ReplaceItemInObject(pNode, "Brightness", cJSON_CreateString(me));
+		nRet = cJSON_ToFile("./onvif.json", root, pszBuf);
+
+
+
 	}
 
 	if (ns12__SetImagingSettings->ImagingSettings->Contrast != NULL) {
@@ -544,6 +569,7 @@ int __ns12__SetImagingSettings(
 	if (ns12__SetImagingSettings->ImagingSettings->Exposure != NULL) {
 		set_image_Exposure(ns12__SetImagingSettings);
 	}
+
 	return SOAP_OK;
 }
 
