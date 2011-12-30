@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
+#include "cJSON.h"
 
 #include "Binding.nsmap"
 
@@ -209,6 +209,93 @@ int SingleFifoinit(const char *fifopath, int *fifofd, int nMode)
     return 1;
 }
 
+// Load JSON File
+int cJSON_FromFile(const char *pszFile, cJSON **pszJson, char **pszBuf)
+{
+	char *pszData = NULL;
+	FILE *pFile  = NULL;
+	int nFileLen = 0;
+	int nReadLen = 0;
+
+	pFile = fopen("./onvif.json", "rb");
+	if (NULL == pFile) {
+		printf("Open file %s failed. Err: %s", pszFile, strerror(errno));
+		return -1;
+	}
+
+	fseek(pFile, 0, SEEK_END);
+
+	nFileLen = ftell(pFile);
+	if (-1 == nFileLen) {
+		perror("ftell");
+		return -2;
+	}
+
+	fseek(pFile, 0, SEEK_SET);
+
+	pszData = (char *)malloc(nFileLen + 1);
+	if (NULL == pszData) {
+		perror("malloc");
+		return -3;
+	}
+
+	nReadLen = fread(pszData, 1, nFileLen, pFile);
+	if (nFileLen != nReadLen) {
+		perror("fread");
+		return -4;
+	}
+
+	*pszBuf = pszData;
+
+	*pszJson = cJSON_Parse(pszData);
+	if (NULL == *pszJson) {
+		printf("CJSON_Parse failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return -5;
+	}
+
+	fclose(pFile);
+
+	return 0;
+}
+
+// Save JSON data to file
+int cJSON_ToFile(const char *pszFile, cJSON *pszJson, char *pszBuf)
+{
+	char *pszData = NULL;
+	FILE *pFile   = NULL;
+	int nWriteLen = 0;
+
+	//释放FromFile的申请内存空间
+	free(pszBuf);
+
+	pFile = fopen(pszFile, "rb+");
+	if (NULL == pFile) {
+		printf("Open file %s failed. Err: %s", pszFile, strerror(errno));
+		return -1;
+	}
+
+	pszData = cJSON_Print(pszJson);
+	if (NULL == pszData) {
+		printf("cJSON_Print failed. Err: %s\n", cJSON_GetErrorPtr());
+		return -2;
+	}
+
+	cJSON_Delete(pszJson);
+	printf("%s\n", pszData);
+
+	// write to file
+	nWriteLen = fwrite(pszData, strlen(pszData), 1, pFile);
+	if (1 != nWriteLen) {
+		perror("fwrite");
+		return -3;
+	}
+
+	free(pszData);
+	fclose(pFile);
+
+	return 0;
+}
+
 char *GetLocalHostIP()
 {  
     char *ip=NULL;
@@ -329,97 +416,60 @@ int __ns1__GetVideoSources(struct soap* soap,struct _ns2__GetVideoSources *ns2__
 
  int  __ns12__GetServiceCapabilities(struct soap* soap, struct _ns12__GetServiceCapabilities *ns12__GetServiceCapabilities, struct _ns12__GetServiceCapabilitiesResponse *ns12__GetServiceCapabilitiesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
-int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettings *ns12__GetImagingSettings, struct _ns12__GetImagingSettingsResponse *ns12__GetImagingSettingsResponse)
-{
-    printf("%s\n",__FUNCTION__);
 
-/*
-    float a10086 = 0.0;
-    
-    struct ns3__BacklightCompensation20* pBacklightCompensation;
-    struct ns3__Exposure20* pExposure;
-    struct ns3__FocusConfiguration20* pFocusConfiguration;
-    enum ns3__IrCutFilterMode* pIrCutFilter;
-    struct ns3__WhiteBalance20* pWhiteBalance;
-    struct ns3__WideDynamicRange20* pWideDynamicRange;
-    pBacklightCompensation = (struct ns3__BacklightCompensation20*)soap_malloc(soap,sizeof(struct ns3__BacklightCompensation20));
-    pExposure = (struct ns3__Exposure20*)soap_malloc(soap,sizeof(struct ns3__Exposure20));
-    pFocusConfiguration = (struct ns3__FocusConfiguration20*)soap_malloc(soap,sizeof(struct ns3__FocusConfiguration20));
-    pIrCutFilter = (enum ns3__IrCutFilterMode*)soap_malloc(soap,sizeof(enum ns3__IrCutFilterMode));
-    pWhiteBalance = (struct ns3__WhiteBalance20*)soap_malloc(soap,sizeof(struct ns3__WhiteBalance20));
-    pWideDynamicRange = (struct ns3__WideDynamicRange20*)soap_malloc(soap,sizeof(struct ns3__WideDynamicRange20));    
-    memset(pBacklightCompensation,0,sizeof(struct ns3__BacklightCompensation20));
-    memset(pExposure,0,sizeof(struct ns3__Exposure20));
-    memset(pFocusConfiguration,0,sizeof(struct ns3__FocusConfiguration20)); 
-    memset(pIrCutFilter,0,sizeof(enum ns3__IrCutFilterMode));
-    memset(pWhiteBalance,0,sizeof(struct ns3__WhiteBalance20));
-    memset(pWideDynamicRange,0,sizeof(struct ns3__WideDynamicRange20));
 
-    //���ⲹ��
-    pBacklightCompensation->Mode = ns3__BacklightCompensationMode__OFF;
-    pBacklightCompensation->Level= &a10086;//0
 
-    //�ع�ʱ��
-    pExposure->Mode = ns3__ExposureMode__AUTO;
-    #if 0
-    struct ns3__Rectangle *pWindow;
-    pWindow = (struct ns3__Rectangle*)soap_malloc(soap,sizeof(struct ns3__Rectangle));
-    memset(pWindow,0,sizeof(struct ns3__Rectangle));
-    pWindow->bottom = &a10086;
-    pWindow->left   = &a10086;
-    pWindow->right  = &a10086;
-    pWindow->top    = &a10086;
-    enum ns3__ExposurePriority *pPriority;
-    pPriority= (enum ns3__ExposurePriority*)soap_malloc(soap,sizeof(enum ns3__ExposurePriority));
-    memset(pPriority,0,sizeof(enum ns3__ExposurePriority));
-    *pPriority = ns3__ExposurePriority__FrameRate;
-    
-    pExposure->Priority = pPriority;
-    pExposure->Window = pWindow;
-    pExposure->MaxExposureTime = &a10086;
-    pExposure->MinExposureTime = &a10086;
-    pExposure->MinGain = &a10086;
-    pExposure->MaxGain = &a10086;
-    pExposure->MaxIris = &a10086;
-    pExposure->MinIris = &a10086;
-    pExposure->Gain = &a10086;
-    pExposure->Iris = &a10086;
-    pExposure->ExposureTime = &a10086;
-    #endif
 
-    //�۽�
-    pFocusConfiguration->AutoFocusMode = ns3__AutoFocusMode__MANUAL;
-    #if 0
-    pFocusConfiguration->DefaultSpeed = &a10086;
-    pFocusConfiguration->NearLimit = &a10086;
-    pFocusConfiguration->FarLimit  = &a10086;
-    #endif
-    //ircut filter
-    *pIrCutFilter = ns3__IrCutFilterMode__AUTO;
-    //��ƽ��
-    pWhiteBalance->Mode = ns3__WhiteBalanceMode__AUTO;
-    //pWhiteBalance->CrGain = &a10086;
-    //pWhiteBalance->CbGain = &a10086;
-    //�?̬���
-    pWideDynamicRange->Mode = ns3__WideDynamicMode__ON;
-    pWideDynamicRange->Level= &a10086;//0
-    
-    struct ns3__ImagingSettings20* pImagingSettings20;
-    pImagingSettings20 = (struct ns3__ImagingSettings20*)soap_malloc(soap,sizeof(struct ns3__ImagingSettings20));
-    memset(pImagingSettings20,0,sizeof(struct ns3__ImagingSettings20));
-    pImagingSettings20->BacklightCompensation = pBacklightCompensation;
-    pImagingSettings20->Contrast = &a10086;
-    pImagingSettings20->Sharpness = &a10086;
-    pImagingSettings20->Brightness = &a10086;
-    pImagingSettings20->ColorSaturation = &a10086;
-    pImagingSettings20->Exposure = pExposure;
-    pImagingSettings20->Focus = pFocusConfiguration;
-    pImagingSettings20->IrCutFilter = pIrCutFilter;
-    pImagingSettings20->WhiteBalance = pWhiteBalance;
-    pImagingSettings20->WideDynamicRange = pWideDynamicRange;
-    
-    ns12__GetImagingSettingsResponse->ImagingSettings = pImagingSettings20;
-    */
+int __ns12__GetImagingSettings(
+		struct soap* soap,
+		struct _ns12__GetImagingSettings *ns12__GetImagingSettings,
+		struct _ns12__GetImagingSettingsResponse *ns12__GetImagingSettingsResponse) {
+	printf("%s\n", __FUNCTION__);
+	// Check Profile exist
+	// Get Presets
+	// Get Presets
+	cJSON *root = NULL;
+	cJSON *pJsonPreset = NULL;
+	cJSON *pNode = NULL;
+	cJSON *pVal = NULL;
+	char *pszBuf = NULL;
+	int nRet = 0;
+
+	nRet = cJSON_FromFile("./onvif.json", &root, &pszBuf);
+	if (0 != nRet) {
+		printf("Load Json file failed.\n");
+		return -101;
+	}
+
+	pJsonPreset = cJSON_GetObjectItem(root, "Preset");
+	if (NULL == pJsonPreset) {
+		printf("Get Preset failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return SOAP_FAULT;
+	}
+
+	int nCounts = cJSON_GetArraySize(pJsonPreset);
+	int nIdx = 0;
+	int nArryId = 0;
+	int nFind = 0;
+
+	printf("Count: %d\n", nCounts);
+	pNode = cJSON_GetArrayItem(pJsonPreset, nIdx);
+	if (NULL == pNode) {
+		printf("Get Node failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	}
+	pVal = cJSON_GetObjectItem(pNode, "PresetName");
+	if (NULL != pVal) {
+		char *pszName = NULL;
+
+		pszName = (char *) soap_malloc(soap, 64);
+		if (NULL != pszName) {
+			memset(pszName, 0, 64);
+			snprintf(pszName, 64, pVal->valuestring);
+			printf("pszName:%s\n", pszName);
+		}
+	}
+
+
     return SOAP_OK;
 }
 
