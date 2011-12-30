@@ -417,9 +417,10 @@ int __ns1__GetVideoSources(struct soap* soap,struct _ns2__GetVideoSources *ns2__
  int  __ns12__GetServiceCapabilities(struct soap* soap, struct _ns12__GetServiceCapabilities *ns12__GetServiceCapabilities, struct _ns12__GetServiceCapabilitiesResponse *ns12__GetServiceCapabilitiesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
 
-float *get_json_valude(struct soap* soap, char *name,const char *father)
+float *get_json_valude(struct soap* soap, const char *name,const char *father)
 {
 	float *back =  (float *)soap_malloc(soap, sizeof(float));
+    memset(back, 0, sizeof(float));
 
 	cJSON *root = NULL;
 	cJSON *pJsonPreset = NULL;
@@ -431,13 +432,14 @@ float *get_json_valude(struct soap* soap, char *name,const char *father)
 	nRet = cJSON_FromFile("./onvif.json", &root, &pszBuf);
 	if (0 != nRet) {
 		printf("Load Json file failed.\n");
+		return NULL;
 	}
 
 	pJsonPreset = cJSON_GetObjectItem(root, father);
 	if (NULL == pJsonPreset) {
 		printf("Get Preset failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return NULL;
 	}
-
 	int nCounts = cJSON_GetArraySize(pJsonPreset);
 	int nIdx = 0;
 	int nArryId = 0;
@@ -448,20 +450,18 @@ float *get_json_valude(struct soap* soap, char *name,const char *father)
 	pNode = cJSON_GetArrayItem(pJsonPreset, nIdx);
 	if (NULL == pNode) {
 		printf("Get Node failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return NULL;
 	}
-	pVal = cJSON_GetObjectItem(pNode, "Brightness");
+	pVal = cJSON_GetObjectItem(pNode, name);
 	if (NULL != pVal) {
 		char *pszName = NULL;
-
 		pszName = (char *) soap_malloc(soap, 64);
-		if (NULL != pszName) {
-			memset(pszName, 0, 64);
-			snprintf(pszName, 64, pVal->valuestring);
-			printf("Brightness:%s\n", pszName);
-		}
+	   memset(pszName, 0, 64);
+		*back = atof(pVal->valuestring);
 	}
+	else
+		return NULL;
    return back;
-
 }
 
 
@@ -470,17 +470,15 @@ int __ns12__GetImagingSettings(
 		struct _ns12__GetImagingSettings *ns12__GetImagingSettings,
 		struct _ns12__GetImagingSettingsResponse *ns12__GetImagingSettingsResponse) {
 	printf("%s\n", __FUNCTION__);
-	// Check Profile exist
-	// Get Presets
-	// Get Presets
-	struct ns3__ImagingSettings20 *ImagingSettings = (struct ns3__ImagingSettings20 *)soap_malloc(soap, sizeof(struct ns3__ImagingSettings20));
-	ns12__GetImagingSettingsResponse->ImagingSettings  = ImagingSettings;
-	ImagingSettings->Brightness = get_json_valude(soap, "Brightness", "ImagingSettings");
 
+	struct ns3__ImagingSettings20* pImagingSettings20;
+	pImagingSettings20 = (struct ns3__ImagingSettings20*) soap_malloc(soap,
+			sizeof(struct ns3__ImagingSettings20));
+	memset(pImagingSettings20, 0, sizeof(struct ns3__ImagingSettings20));
+	ns12__GetImagingSettingsResponse->ImagingSettings = pImagingSettings20;
+	pImagingSettings20->Brightness = get_json_valude(soap, "Brightness", "ImagingSettings");
 
-
-
-    return SOAP_OK;
+	return SOAP_OK;
 }
 
 int setfifoimage(unsigned char Fifo_ID, unsigned char imgID, int imgvalue) {
