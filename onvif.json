@@ -1,0 +1,13 @@
+{
+	"Preset":	[{
+			"Id":	1,
+			"Token":	"1",
+			"PresetName":	"PresetName1",
+			"Used":	true
+		}, {
+			"Id":	2,
+			"Token":	"2",
+			"PresetName":	"P2",
+			"Used":	false
+		}]
+}}
