@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "cJSON.h"
-
+#include <regex.h>
 #include "Binding.nsmap"
 
 #include <errno.h> 
@@ -1672,7 +1672,15 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 
  int  __ns2__SetVideoSourceConfiguration(struct soap* soap, struct _ns2__SetVideoSourceConfiguration *ns2__SetVideoSourceConfiguration, struct _ns2__SetVideoSourceConfigurationResponse *ns2__SetVideoSourceConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns2__SetVideoEncoderConfiguration(struct soap* soap, struct _ns2__SetVideoEncoderConfiguration *ns2__SetVideoEncoderConfiguration, struct _ns2__SetVideoEncoderConfigurationResponse *ns2__SetVideoEncoderConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int __ns2__SetVideoEncoderConfiguration(
+		struct soap* soap,
+		struct _ns2__SetVideoEncoderConfiguration *ns2__SetVideoEncoderConfiguration,
+		struct _ns2__SetVideoEncoderConfigurationResponse *ns2__SetVideoEncoderConfigurationResponse) {
+
+	//ns2__SetVideoEncoderConfiguration->Configuration->H264
+	printf("%s\n", __FUNCTION__);
+	return SOAP_OK;
+}
 
  int  __ns2__SetAudioSourceConfiguration(struct soap* soap, struct _ns2__SetAudioSourceConfiguration *ns2__SetAudioSourceConfiguration, struct _ns2__SetAudioSourceConfigurationResponse *ns2__SetAudioSourceConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -2484,7 +2492,55 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 
  int  __ns8__SetHostname(struct soap* soap, struct _ns8__SetHostname *ns8__SetHostname, struct _ns8__SetHostnameResponse *ns8__SetHostnameResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns8__GetDNS(struct soap* soap, struct _ns8__GetDNS *ns8__GetDNS, struct _ns8__GetDNSResponse *ns8__GetDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+static char *strings_to_get_dns(char *src) {
+    char *back = NULL;
+	const char* pattern = "([0-9]+\\.){3}[0-9]*";
+	regex_t preg;
+	regmatch_t pmatch[10];
+	regcomp(&preg, pattern, REG_EXTENDED);
+	if (regexec(&preg, src, 10, pmatch, 0) != REG_NOMATCH) {
+		int sub_len = pmatch[0].rm_eo - pmatch[0].rm_so;
+        back = (char*)malloc(sub_len+1);
+		memcpy(back, src + pmatch[0].rm_so, sub_len);
+		back[sub_len] = '\0';
+	}
+	return back;
+}
+
+ int __ns8__GetDNS(struct soap* soap, struct _ns8__GetDNS *ns8__GetDNS,
+		struct _ns8__GetDNSResponse *ns8__GetDNSResponse) {
+	printf("%s\n", __FUNCTION__);
+
+/*
+	FILE * stream;
+	char buf[1000];
+	stream = fopen("/etc/network/interfaces", "r");
+	while ( fgets(buf, 1000, stream) != NULL) {
+        char *p = strstr(buf, "gateway");
+        		if(p != NULL)
+        		{
+        			char *me = strings_to_get_dns(p);
+        			struct ns3__DNSInformation *dNSInformation;
+        			dNSInformation= (struct ns3__DNSInformation*)soap_malloc(soap,sizeof(struct ns3__DNSInformation));
+        			ns8__GetDNSResponse->DNSInformation = dNSInformation;
+        			struct ns3__IPAddress *DNSManual = (struct ns3__IPAddress*)soap_malloc(soap,sizeof(struct ns3__IPAddress));
+        			dNSInformation->DNSManual = DNSManual;
+
+        			char *ipv4adderss = (char*)soap_malloc(soap,strlen(p));
+        			strcpy(ipv4adderss, me);
+        			DNSManual->IPv4Address = &ipv4adderss;
+
+        			printf("%s\n", me);
+        			free(me);
+        			break;
+        		}
+		fseek(stream, ftell(stream), SEEK_SET);
+	}
+
+	fclose(stream);
+*/
+	return SOAP_OK;
+}
 
  int  __ns8__SetDNS(struct soap* soap, struct _ns8__SetDNS *ns8__SetDNS, struct _ns8__SetDNSResponse *ns8__SetDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -2659,7 +2715,13 @@ int __ns8__GetDeviceInformation_(struct soap* soap, struct _ns8__GetDeviceInform
 
  int  __ns8__SetHostnameFromDHCP(struct soap* soap, struct _ns8__SetHostnameFromDHCP *ns8__SetHostnameFromDHCP, struct _ns8__SetHostnameFromDHCPResponse *ns8__SetHostnameFromDHCPResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns8__GetDNS_(struct soap* soap, struct _ns8__GetDNS *ns8__GetDNS, struct _ns8__GetDNSResponse *ns8__GetDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+
+ int __ns8__GetDNS_(struct soap* soap, struct _ns8__GetDNS *ns8__GetDNS,
+		struct _ns8__GetDNSResponse *ns8__GetDNSResponse) {
+	printf("%s\n", __FUNCTION__);
+
+	return SOAP_OK;
+}
 
  int  __ns8__SetDNS_(struct soap* soap, struct _ns8__SetDNS *ns8__SetDNS, struct _ns8__SetDNSResponse *ns8__SetDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 

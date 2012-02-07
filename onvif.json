@@ -10,10 +10,12 @@
 			"PresetName":	"P2",
 			"Used":	false
 		}],
-	"ImagingSettings": [{
-	           "Brightness":"11",
-	           "ColorSaturation":12,
-	           "Sharpness":13,
-	           "Contrast":14
+	"ImagingSettings":	[{
+			"Brightness":	"130",
+			"ColorSaturation":	"100",
+			"Sharpness":	"133",
+			"Contrast":	"132"
+		}]
+}      "Contrast":"34"
 	                       }]
 }}
