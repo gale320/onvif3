@@ -28,7 +28,7 @@ SERVER_OBJS = onvif.o onvifC.o stdsoap2.o onvifServer.o wsserver.o cJSON.o  -lpt
 all: server
 
 server: $(SERVER_OBJS)
-	$(CC) $(INCLUDE) $(UNIT_TEST_CFLAG) -o $(WSNAME)server $(SERVER_OBJS) libjsonc.so
+	$(CC) $(INCLUDE) $(UNIT_TEST_CFLAG) -o $(WSNAME)server $(SERVER_OBJS)
 
 stdsoap2.o:$(GSOAP_ROOT)/stdsoap2.c
 	$(CC) -c $(UNIT_TEST_CFLAG) $? $(INCLUDE)
