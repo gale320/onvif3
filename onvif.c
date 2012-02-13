@@ -2542,7 +2542,33 @@ static char *strings_to_get_dns(char *src) {
 	return SOAP_OK;
 }
 
- int  __ns8__SetDNS(struct soap* soap, struct _ns8__SetDNS *ns8__SetDNS, struct _ns8__SetDNSResponse *ns8__SetDNSResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int __ns8__SetDNS(struct soap* soap, struct _ns8__SetDNS *ns8__SetDNS,
+		struct _ns8__SetDNSResponse *ns8__SetDNSResponse) {
+	printf("%s\n", __FUNCTION__);
+
+	FILE * stream;
+	char buf[1000];
+	stream = fopen("/etc/network/interfaces", "rb+");
+	while (fgets(buf, 1000, stream) != NULL) {
+		char *p = strstr(buf, "address");
+		if (p != NULL) {
+			fseek(stream, ftell(stream) - strlen(p), SEEK_SET);
+			char ip_address[100] = "address ";
+		    strcat(ip_address, *ns8__SetDNS->DNSManual->IPv4Address);
+			fwrite(ip_address, strlen(ip_address), 1, stream);
+			fclose(stream);
+			system("reboot");
+			break;
+		}
+		fseek(stream, ftell(stream), SEEK_SET);
+
+	}
+
+	fclose(stream);
+
+
+	return SOAP_OK;
+}
 
  int  __ns8__GetNTP(struct soap* soap, struct _ns8__GetNTP *ns8__GetNTP, struct _ns8__GetNTPResponse *ns8__GetNTPResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
