@@ -3,4 +3,5 @@
 *.o
 onvifserver
 *.bak
+*.swp
 
