@@ -1,0 +1,15 @@
+	.cproject
+	.project
+	cJSON.o
+	html/
+	killall.sh
+	latex.bak/
+	onvif.c.bak
+	onvif.c.bak.bak
+	onvif.o
+	onvifC.o
+	onvifServer.o
+	onvifserver
+	stdsoap2.o
+	wsserver.o
+
