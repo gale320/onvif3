@@ -1,4 +1,6 @@
 .cproject
 .project
 *.o
+onvifserver
+*.bak
 
