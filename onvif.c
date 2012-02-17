@@ -429,7 +429,7 @@ float *get_json_valude(struct soap* soap, const char *name,const char *father)
 	char *pszBuf = NULL;
 	int nRet = 0;
 
-	nRet = cJSON_FromFile("./onvif.json", &root, &pszBuf);
+	nRet = cJSON_FromFile("/etc/ambaipcam/IPC_Q313/config/pwd/onvif.json", &root, &pszBuf);
 	if (0 != nRet) {
 		printf("Load Json file failed.\n");
 		return NULL;
