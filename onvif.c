@@ -526,7 +526,7 @@ int __ns12__SetImagingSettings(
 	char *pszBuf = NULL;
 	char me[4];
 	int nRet = 0;
-	nRet = cJSON_FromFile("./onvif.json", &root, &pszBuf);
+	nRet = cJSON_FromFile("/etc/ambaipcam/IPC_Q313/config/pwd/onvif.json", &root, &pszBuf);
 	pPreset = cJSON_GetObjectItem(root, "ImagingSettings");
 	pNode = cJSON_GetArrayItem(pPreset, 0);
 
@@ -573,7 +573,7 @@ int __ns12__SetImagingSettings(
 		set_image_Exposure(ns12__SetImagingSettings);
 	}
 
-	nRet = cJSON_ToFile("./onvif.json", root, pszBuf);
+	nRet = cJSON_ToFile("/etc/ambaipcam/IPC_Q313/config/pwd/onvif.json", root, pszBuf);
 	return SOAP_OK;
 }
 
