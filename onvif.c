@@ -573,7 +573,7 @@ int __ns12__SetImagingSettings(
 		set_image_Exposure(ns12__SetImagingSettings);
 	}
 
-	nRet = cJSON_ToFile("/etc/ambaipcam/IPC_Q313/config/pwd/onvif.json", root, pszBuf);
+	//nRet = cJSON_ToFile("/etc/ambaipcam/IPC_Q313/config/pwd/onvif.json", root, pszBuf);
 	return SOAP_OK;
 }
 
@@ -642,14 +642,35 @@ int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOpt
     pImagingOptions = (struct ns3__ImagingOptions20*)soap_malloc(soap,sizeof(struct ns3__ImagingOptions20));
     memset(pImagingOptions,0,sizeof(struct ns3__ImagingOptions20));
     pImagingOptions->BacklightCompensation;
-    pImagingOptions->Brightness;
-    pImagingOptions->ColorSaturation;
-    pImagingOptions->Contrast;
+
+    pImagingOptions->Brightness = (struct ns3__FloatRange*)soap_malloc(soap,sizeof(struct ns3__FloatRange));
+    memset(pImagingOptions->Brightness,0,sizeof(struct ns3__FloatRange));
+    pImagingOptions->Brightness->Max = 255;
+    pImagingOptions->Brightness->Min = -255;
+
+    pImagingOptions->ColorSaturation = (struct ns3__FloatRange*)soap_malloc(soap,sizeof(struct ns3__FloatRange));;
+    memset(pImagingOptions->ColorSaturation,0,sizeof(struct ns3__FloatRange));
+    pImagingOptions->ColorSaturation->Max = 256;
+    pImagingOptions->ColorSaturation->Min = 0;
+
+
+    pImagingOptions->Contrast = (struct ns3__FloatRange*)soap_malloc(soap,sizeof(struct ns3__FloatRange));;
+    memset(pImagingOptions->Contrast,0,sizeof(struct ns3__FloatRange));
+    pImagingOptions->Contrast->Max = 256;
+    pImagingOptions->Contrast->Min = 0;
+
+
     pImagingOptions->Exposure;
     pImagingOptions->Focus;
     pImagingOptions->__sizeIrCutFilterModes;
     pImagingOptions->IrCutFilterModes;
-    pImagingOptions->Sharpness;
+    pImagingOptions->Sharpness = (struct ns3__FloatRange*)soap_malloc(soap,sizeof(struct ns3__FloatRange));;
+    memset(pImagingOptions->Sharpness,0,sizeof(struct ns3__FloatRange));
+    pImagingOptions->Sharpness->Max = 256;
+    pImagingOptions->Sharpness->Min = 0;
+
+
+
     pImagingOptions->WideDynamicRange;
     pImagingOptions->WhiteBalance;
     
