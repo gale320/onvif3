@@ -477,11 +477,12 @@ int __ns12__GetImagingSettings(
 	memset(pImagingSettings20, 0, sizeof(struct ns3__ImagingSettings20));
 	ns12__GetImagingSettingsResponse->ImagingSettings = pImagingSettings20;
 
-	pImagingSettings20->Brightness = get_json_valude(soap, "Brightness", "ImagingSettings");
-	pImagingSettings20->ColorSaturation = get_json_valude(soap, "ColorSaturation", "ImagingSettings");
+    float a = 130;
+	pImagingSettings20->Brightness = &a;//get_json_valude(soap, "Brightness", "ImagingSettings");
+	pImagingSettings20->ColorSaturation = &a;//get_json_valude(soap, "ColorSaturation", "ImagingSettings");
 
-	pImagingSettings20->Contrast = get_json_valude(soap, "Contrast", "ImagingSettings");
-	pImagingSettings20->Sharpness = get_json_valude(soap, "Sharpness", "ImagingSettings");
+	pImagingSettings20->Contrast = &a;//get_json_valude(soap, "Contrast", "ImagingSettings");
+	pImagingSettings20->Sharpness = &a;//get_json_valude(soap, "Sharpness", "ImagingSettings");
 
 	return SOAP_OK;
 }
@@ -526,16 +527,18 @@ int __ns12__SetImagingSettings(
 	char *pszBuf = NULL;
 	char me[4];
 	int nRet = 0;
+	/*
 	nRet = cJSON_FromFile("/etc/ambaipcam/IPC_Q313/config/pwd/onvif.json", &root, &pszBuf);
 	pPreset = cJSON_GetObjectItem(root, "ImagingSettings");
 	pNode = cJSON_GetArrayItem(pPreset, 0);
+	*/
 
 	if (ns12__SetImagingSettings->ImagingSettings->Brightness != NULL) {
 		setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_BRIGHT_SET,
 				(int) *ns12__SetImagingSettings->ImagingSettings->Brightness); //亮度 0~255 (-255 - +255)
 
 		gcvt(*ns12__SetImagingSettings->ImagingSettings->Brightness,4,me);
-		cJSON_ReplaceItemInObject(pNode, "Brightness", cJSON_CreateString(me));
+		//cJSON_ReplaceItemInObject(pNode, "Brightness", cJSON_CreateString(me));
 
 	}
 
@@ -543,7 +546,7 @@ int __ns12__SetImagingSettings(
 		setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_CONTRAST_SET,
 				(int) *ns12__SetImagingSettings->ImagingSettings->Contrast); //对比度 onvif 0~255 (unit = 64 ，128 is X2 valid rang:0～256)
 		gcvt(*ns12__SetImagingSettings->ImagingSettings->Contrast,4,me);
-		cJSON_ReplaceItemInObject(pNode, "Contrast", cJSON_CreateString(me));
+		//cJSON_ReplaceItemInObject(pNode, "Contrast", cJSON_CreateString(me));
 	}
 
 	if (ns12__SetImagingSettings->ImagingSettings->ColorSaturation != NULL) {
@@ -552,14 +555,14 @@ int __ns12__SetImagingSettings(
 				WTA_IMGQU_SATURATION_SET,
 				(int) *ns12__SetImagingSettings->ImagingSettings->ColorSaturation); //饱和度 onvif 0~255 (unit = 64，128 is X2 valid rang:0～256)
 		gcvt(*ns12__SetImagingSettings->ImagingSettings->ColorSaturation,4,me);
-		cJSON_ReplaceItemInObject(pNode, "ColorSaturation", cJSON_CreateString(me));
+		//cJSON_ReplaceItemInObject(pNode, "ColorSaturation", cJSON_CreateString(me));
 	}
 
 	if (ns12__SetImagingSettings->ImagingSettings->Sharpness != NULL) {
 		setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_SHARP_SET,
 				(int) *ns12__SetImagingSettings->ImagingSettings->Sharpness); //锐度 onvif 0~255 (unit = 128，256 is X2 valid rang:0～256)
 		gcvt(*ns12__SetImagingSettings->ImagingSettings->Sharpness,4,me);
-		cJSON_ReplaceItemInObject(pNode, "Sharpness", cJSON_CreateString(me));
+		//cJSON_ReplaceItemInObject(pNode, "Sharpness", cJSON_CreateString(me));
 	}
 
 	if (ns12__SetImagingSettings->ImagingSettings->BacklightCompensation != NULL) {
@@ -865,6 +868,7 @@ int  __ns13__SetPreset(struct soap* soap, struct _ns13__SetPreset *ns13__SetPres
 
  int  __ns13__GotoPreset(struct soap* soap, struct _ns13__GotoPreset *ns13__GotoPreset, struct _ns13__GotoPresetResponse *ns13__GotoPresetResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
+
 int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStatus, struct _ns13__GetStatusResponse *ns13__GetStatusResponse)
 {
     printf("%s\n",__FUNCTION__);
@@ -908,7 +912,7 @@ int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStat
     pPTZStatus->Error = "No Error";
     pPTZStatus->UtcTime = rawtime;
     pPTZStatus->__size = 1;
-    
+
     ns13__GetStatusResponse->PTZStatus = pPTZStatus;
     return SOAP_OK;
 }
