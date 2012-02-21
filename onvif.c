@@ -672,8 +672,6 @@ int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOpt
     pImagingOptions->Sharpness->Max = 256;
     pImagingOptions->Sharpness->Min = 0;
 
-
-
     pImagingOptions->WideDynamicRange;
     pImagingOptions->WhiteBalance;
     
