@@ -1622,6 +1622,8 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
     pProfile->VideoSourceConfiguration = pVideoSourcesConfig;
     pProfile->VideoEncoderConfiguration= pVideoEncoderConfig;
     pProfile->PTZConfiguration = pszPTZConf;
+	xsd__boolean fixed = xsd__boolean__false_;
+	pProfile->fixed = &fixed;
 
     ns2__GetProfilesResponse->__sizeProfiles = 1;
     ns2__GetProfilesResponse->Profiles = pProfile;
