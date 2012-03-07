@@ -297,29 +297,30 @@ int cJSON_ToFile(const char *pszFile, cJSON *pszJson, char *pszBuf)
 }
 
 char *GetLocalHostIP()
-{  
-    char *ip=NULL;
-    int fd;
-    struct ifreq ifr; ///if.h
-    struct sockaddr_in *addr = NULL;
+{ 
 
-    if ((fd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) //socket.h
-    {
-    	memset(&ifr, 0, sizeof(ifr));
-    	
-    	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ - 1);
-    	
-    	if(ioctl(fd, SIOCGIFADDR, &ifr) == -1) {
-    		perror("ioctl error");
-    	}
-    	
-    	addr = (struct sockaddr_in *)&(ifr.ifr_addr);
-    	ip = inet_ntoa(addr->sin_addr);
-      
-      close (fd);
-    }
+	 FILE *fp;
+  int status;
+  char path[30];
+
+  fp = popen("LC_ALL=C ifconfig  | grep 'inet addr:'| grep -v '127.0.0.1' |cut -d: -f2 | awk '{ print $1}'", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit;
+  }
+
+  while (fgets(path, sizeof(path)-1, fp) != NULL) {
+    printf("%s", path);
+  }
+
+  int lens = strlen(path);
+  char *back = (char *)malloc(lens);
+  strncpy(back, path, strlen(path -1 ));
+  back[lens - 1] = '\0';
+  pclose(fp);
+  
+  return back;
     
-    return ip;
 }
 
 static int SetIPConf(const char *pszIP, const char *pszMask, const char *pszGateway)
@@ -2406,7 +2407,10 @@ int ResponseMediaCapabilities(struct soap* soap, struct _ns8__GetCapabilities *n
     memset(mediacapt,0,sizeof(struct ns3__MediaCapabilities));
     char *cap_uri;
     cap_uri = (char*)soap_malloc(soap,32*sizeof(char));
-    snprintf(cap_uri,32,"http://%s:8800",GetLocalHostIP());
+	
+	char *ip = GetLocalHostIP();
+    snprintf(cap_uri,32,"http://%s:8800", ip);
+	free(ip);
     printf("in capabilities Xaddr=%s\n",cap_uri);
     mediacapt->XAddr = cap_uri;
     mediacapt->StreamingCapabilities = RTstreamcapt;
