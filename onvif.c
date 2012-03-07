@@ -398,13 +398,34 @@ int __ns1__GetVideoSources(struct soap* soap,struct _ns2__GetVideoSources *ns2__
 
  int  __ns1__SetAudioSourceConfiguration(struct soap* soap, struct _ns1__SetAudioSourceConfiguration *ns1__SetAudioSourceConfiguration, struct _ns1__SetAudioSourceConfigurationResponse *ns1__SetAudioSourceConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns1__SetAudioOutputConfiguration(struct soap* soap, struct _ns1__SetAudioOutputConfiguration *ns1__SetAudioOutputConfiguration, struct _ns1__SetAudioOutputConfigurationResponse *ns1__SetAudioOutputConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int  __ns1__SetAudioOutputConfiguration(struct soap* soap, struct _ns1__SetAudioOutputConfiguration *ns1__SetAudioOutputConfiguration, struct _ns1__SetAudioOutputConfigurationResponse *ns1__SetAudioOutputConfigurationResponse){
+	printf("%s\n",__FUNCTION__);
+	return SOAP_OK;
+	 }
 
- int  __ns1__GetVideoSourceConfigurationOptions(struct soap* soap, struct _ns1__GetVideoSourceConfigurationOptions *ns1__GetVideoSourceConfigurationOptions, struct _ns1__GetVideoSourceConfigurationOptionsResponse *ns1__GetVideoSourceConfigurationOptionsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int __ns1__GetVideoSourceConfigurationOptions(
+		struct soap* soap,
+		struct _ns1__GetVideoSourceConfigurationOptions *ns1__GetVideoSourceConfigurationOptions,
+		struct _ns1__GetVideoSourceConfigurationOptionsResponse *ns1__GetVideoSourceConfigurationOptionsResponse) {
+	printf("%s\n", __FUNCTION__);
+	return SOAP_OK;
+}
 
- int  __ns1__GetVideoOutputConfigurationOptions(struct soap* soap, struct _ns1__GetVideoOutputConfigurationOptions *ns1__GetVideoOutputConfigurationOptions, struct _ns1__GetVideoOutputConfigurationOptionsResponse *ns1__GetVideoOutputConfigurationOptionsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int __ns1__GetVideoOutputConfigurationOptions(
+		struct soap* soap,
+		struct _ns1__GetVideoOutputConfigurationOptions *ns1__GetVideoOutputConfigurationOptions,
+		struct _ns1__GetVideoOutputConfigurationOptionsResponse *ns1__GetVideoOutputConfigurationOptionsResponse) {
+	printf("%s\n", __FUNCTION__);
+	return SOAP_OK;
+}
 
- int  __ns1__GetAudioSourceConfigurationOptions(struct soap* soap, struct _ns1__GetAudioSourceConfigurationOptions *ns1__GetAudioSourceConfigurationOptions, struct _ns1__GetAudioSourceConfigurationOptionsResponse *ns1__GetAudioSourceConfigurationOptionsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int __ns1__GetAudioSourceConfigurationOptions(
+		struct soap* soap,
+		struct _ns1__GetAudioSourceConfigurationOptions *ns1__GetAudioSourceConfigurationOptions,
+		struct _ns1__GetAudioSourceConfigurationOptionsResponse *ns1__GetAudioSourceConfigurationOptionsResponse) {
+	printf("%s\n", __FUNCTION__);
+	return SOAP_OK;
+}
 
  int  __ns1__GetAudioOutputConfigurationOptions(struct soap* soap, struct _ns1__GetAudioOutputConfigurationOptions *ns1__GetAudioOutputConfigurationOptions, struct _ns1__GetAudioOutputConfigurationOptionsResponse *ns1__GetAudioOutputConfigurationOptionsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -519,7 +540,6 @@ int __ns12__SetImagingSettings(
 		struct _ns12__SetImagingSettingsResponse *ns12__SetImagingSettingsResponse) {
 	printf("%s\n", __FUNCTION__);
 
-
 	cJSON *root = NULL;
 	cJSON *pPreset = NULL;
 	cJSON *pNode = NULL;
@@ -532,6 +552,7 @@ int __ns12__SetImagingSettings(
 	pPreset = cJSON_GetObjectItem(root, "ImagingSettings");
 	pNode = cJSON_GetArrayItem(pPreset, 0);
 	*/
+	
 
 	if (ns12__SetImagingSettings->ImagingSettings->Brightness != NULL) {
 		setfifoimage(WTA_IMAGE_QULITY_SET, WTA_IMGQU_BRIGHT_SET,
@@ -1613,7 +1634,13 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 
  int  __ns2__AddAudioEncoderConfiguration(struct soap* soap, struct _ns2__AddAudioEncoderConfiguration *ns2__AddAudioEncoderConfiguration, struct _ns2__AddAudioEncoderConfigurationResponse *ns2__AddAudioEncoderConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns2__AddAudioSourceConfiguration(struct soap* soap, struct _ns2__AddAudioSourceConfiguration *ns2__AddAudioSourceConfiguration, struct _ns2__AddAudioSourceConfigurationResponse *ns2__AddAudioSourceConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int  __ns2__AddAudioSourceConfiguration(
+       struct soap* soap, struct _ns2__AddAudioSourceConfiguration *ns2__AddAudioSourceConfiguration, 
+	   struct _ns2__AddAudioSourceConfigurationResponse *ns2__AddAudioSourceConfigurationResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	return SOAP_OK;
+	}
 
  int  __ns2__AddPTZConfiguration(struct soap* soap, struct _ns2__AddPTZConfiguration *ns2__AddPTZConfiguration, struct _ns2__AddPTZConfigurationResponse *ns2__AddPTZConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -1647,7 +1674,14 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 
  int  __ns2__GetVideoSourceConfigurations(struct soap* soap, struct _ns2__GetVideoSourceConfigurations *ns2__GetVideoSourceConfigurations, struct _ns2__GetVideoSourceConfigurationsResponse *ns2__GetVideoSourceConfigurationsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns2__GetVideoEncoderConfigurations(struct soap* soap, struct _ns2__GetVideoEncoderConfigurations *ns2__GetVideoEncoderConfigurations, struct _ns2__GetVideoEncoderConfigurationsResponse *ns2__GetVideoEncoderConfigurationsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int  __ns2__GetVideoEncoderConfigurations(
+	struct soap* soap, 
+	struct _ns2__GetVideoEncoderConfigurations *ns2__GetVideoEncoderConfigurations, 
+	struct _ns2__GetVideoEncoderConfigurationsResponse *ns2__GetVideoEncoderConfigurationsResponse)
+	{
+		printf("%s\n",__FUNCTION__);
+		return SOAP_OK;
+		}
 
  int  __ns2__GetAudioSourceConfigurations(struct soap* soap, struct _ns2__GetAudioSourceConfigurations *ns2__GetAudioSourceConfigurations, struct _ns2__GetAudioSourceConfigurationsResponse *ns2__GetAudioSourceConfigurationsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 

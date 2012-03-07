@@ -11,12 +11,14 @@ LINK_FLAG	       := -L $(AMBABUILD_TOPDIR)/prebuild/lib -lpthread
 
 export AMBABUILD_TOPDIR
 
-include $(AMBABUILD_TOPDIR)/build/unit_test/common.mk
+#include $(AMBABUILD_TOPDIR)/build/unit_test/common.mk
 
 UNIT_TEST_LDFLAG	?= $(AMBARELLA_LDFLAGS)
 UNIT_TEST_CFLAG	?= $(AMBARELLA_CFLAGS) -g -O0 -Wall
 
+#CC = $(AMBA_MAKEFILE_V)$(CROSS_COMPILE)g++ -g -DWITH_NONAMESPACES
 CC = $(AMBA_MAKEFILE_V)$(CROSS_COMPILE)g++ -g -DWITH_NONAMESPACES
+
 ar = $(AMBA_MAKEFILE_V)$(CROSS_COMPILE)ar
 
 
