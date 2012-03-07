@@ -4,5 +4,9 @@
 onvifserver
 *.bak
 *.swp
-html
+*.cbp
+*.layout
+*.mk
+*.project
+*.workspace
 
