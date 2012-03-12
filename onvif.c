@@ -2445,23 +2445,36 @@ int ResponseEventCapabilities(struct soap* soap,struct _ns8__GetCapabilities *ns
 	struct ns3__EventCapabilities *pszEveCap = NULL;
 	pszEveCap = (struct ns3__EventCapabilities *)soap_malloc(soap,sizeof(struct ns3__EventCapabilities));
 	if (NULL == pszEveCap) {
-		
+		//Out of memory
 		return SOAP_EOM;
 		}
-		memset(pszEveCap,0,sizeof(struct ns3__EventCapabilities));
+	memset(pszEveCap,0,sizeof(struct ns3__EventCapabilities));
 		
-		pszEveCap->WSPausableSubscriptionManagerInterfaceSupport = xsd__boolean__true_;
-		pszEveCap->WSPullPointSupport = xsd__boolean__true_;
-		pszEveCap->WSSubscriptionPolicySupport = xsd__boolean__true_;
+	char *pszCapURI = NULL;
+	pszCapURI = (char *)soap_malloc(soap, 32*sizeof(char));
+	if (NULL == pszCapURI) {
+		//Out of memory
+			return SOAP_EOM;
+		}
+	memset(pszCapURI, 0, 32);
+	snprintf(pszCapURI, 32, "http://%s:8800", GetLocalHostIP());
+	
+	pszEveCap->XAddr = pszCapURI;
+	
+	pszEveCap->WSPausableSubscriptionManagerInterfaceSupport = xsd__boolean__false_;
+	
+	pszEveCap->WSPullPointSupport = xsd__boolean__false_;
+	
+	pszEveCap->WSSubscriptionPolicySupport = xsd__boolean__false_;
 	
    return SOAP_OK;	
 }
+
 int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct _ns8__GetCapabilitiesResponse *ns8__GetCapabilitiesResponse)
 {
     printf("%s\n",__FUNCTION__);
     int nRet = SOAP_OK;
     struct ns3__Capabilities *pszCap = NULL;
-    
     pszCap = (struct ns3__Capabilities*)soap_malloc(soap,sizeof(struct ns3__Capabilities));
     if (NULL == pszCap) {
     	// Out of memory
