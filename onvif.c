@@ -2439,6 +2439,23 @@ int ResponseImageCapabilities(struct soap* soap, struct _ns8__GetCapabilities *n
 	return SOAP_OK;
 }
 
+//Event
+int ResponseEventCapabilities(struct soap* soap,struct _ns8__GetCapabilities *ns8__GetCapabilities,struct ns3__Capabilities *pszCap)
+{
+	struct ns3__EventCapabilities *pszEveCap = NULL;
+	pszEveCap = (struct ns3__EventCapabilities *)soap_malloc(soap,sizeof(struct ns3__EventCapabilities));
+	if (NULL == pszEveCap) {
+		
+		return SOAP_EOM;
+		}
+		memset(pszEveCap,0,sizeof(struct ns3__EventCapabilities));
+		
+		pszEveCap->WSPausableSubscriptionManagerInterfaceSupport = xsd__boolean__true_;
+		pszEveCap->WSPullPointSupport = xsd__boolean__true_;
+		pszEveCap->WSSubscriptionPolicySupport = xsd__boolean__true_;
+	
+   return SOAP_OK;	
+}
 int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8__GetCapabilities, struct _ns8__GetCapabilitiesResponse *ns8__GetCapabilitiesResponse)
 {
     printf("%s\n",__FUNCTION__);
@@ -2461,7 +2478,8 @@ int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8_
     		if (SOAP_OK != ResponseDeviceCapabilities(soap, ns8__GetCapabilities, pszCap) ||
     			  SOAP_OK != ResponseImageCapabilities(soap, ns8__GetCapabilities, pszCap)  ||
     			  SOAP_OK != ResponseMediaCapabilities(soap, ns8__GetCapabilities, pszCap)  ||
-    			  SOAP_OK != ResponsePTZCapabilities(soap, ns8__GetCapabilities, pszCap)) {
+    			  SOAP_OK != ResponsePTZCapabilities(soap, ns8__GetCapabilities, pszCap)  ||
+				  SOAP_OK != ResponseEventCapabilities(soap,ns8__GetCapabilities,pszCap)){
     			  	return SOAP_FAULT;
     			  }
     		break;
@@ -2475,7 +2493,7 @@ int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8_
 				break;
 				
 			case ns3__CapabilityCategory__Events:
-				nRet = soap_receiver_fault_subcode(soap, "NoSuchService", "The requested Analytics service category is not supported by the device", NULL);
+				nRet = ResponseEventCapabilities(soap, ns8__GetCapabilities,pszCap);
 				break;
 					
 			case ns3__CapabilityCategory__Imaging:
@@ -2613,7 +2631,7 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
    memset(pNetworkInterfaces,0,sizeof(struct ns3__NetworkInterface));
 
    pNetworkInterfaces->token = "1";
-    pNetworkInterfaces->Enabled = xsd__boolean__false_;
+    pNetworkInterfaces->Enabled = xsd__boolean__true_;
    ns8__GetNetworkInterfacesResponse->NetworkInterfaces = pNetworkInterfaces;
 
 	struct ns3__NetworkInterfaceInfo *pInfo;
