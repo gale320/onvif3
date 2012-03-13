@@ -2439,15 +2439,16 @@ int ResponseImageCapabilities(struct soap* soap, struct _ns8__GetCapabilities *n
 	return SOAP_OK;
 }
 
-//Event
+//Events Capabilities
 int ResponseEventCapabilities(struct soap* soap,struct _ns8__GetCapabilities *ns8__GetCapabilities,struct ns3__Capabilities *pszCap)
 {
 	struct ns3__EventCapabilities *pszEveCap = NULL;
-	pszEveCap = (struct ns3__EventCapabilities *)soap_malloc(soap,sizeof(struct ns3__EventCapabilities));
+	
+	pszEveCap = (struct ns3__EventCapabilities *)soap_malloc(soap, sizeof(struct ns3__EventCapabilities));
 	if (NULL == pszEveCap) {
 		//Out of memory
 		return SOAP_EOM;
-		}
+	}
 	memset(pszEveCap,0,sizeof(struct ns3__EventCapabilities));
 		
 	char *pszCapURI = NULL;
@@ -2455,7 +2456,7 @@ int ResponseEventCapabilities(struct soap* soap,struct _ns8__GetCapabilities *ns
 	if (NULL == pszCapURI) {
 		//Out of memory
 			return SOAP_EOM;
-		}
+	}
 	memset(pszCapURI, 0, 32);
 	snprintf(pszCapURI, 32, "http://%s:8800", GetLocalHostIP());
 	
@@ -2466,6 +2467,8 @@ int ResponseEventCapabilities(struct soap* soap,struct _ns8__GetCapabilities *ns
 	pszEveCap->WSPullPointSupport = xsd__boolean__false_;
 	
 	pszEveCap->WSSubscriptionPolicySupport = xsd__boolean__false_;
+	
+	pszCap->Events = pszEveCap;
 	
    return SOAP_OK;	
 }
@@ -2639,15 +2642,16 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
  int __ns8__GetNetworkInterfaces(struct soap* soap,struct _ns8__GetNetworkInterfaces *ns8__GetNetworkInterfaces,struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse)
  {
 	printf("%s\n", __FUNCTION__);
+	
 	struct ns3__NetworkInterface *pNetworkInterfaces;
-   pNetworkInterfaces=(struct ns3__NetworkInterface *)soap_malloc(soap,sizeof(struct ns3__NetworkInterface));
-   memset(pNetworkInterfaces,0,sizeof(struct ns3__NetworkInterface));
+    pNetworkInterfaces = (struct ns3__NetworkInterface *)soap_malloc(soap, sizeof(struct ns3__NetworkInterface));
+    memset(pNetworkInterfaces, 0, sizeof(struct ns3__NetworkInterface));
 
-   pNetworkInterfaces->token = "1";
+    pNetworkInterfaces->token = "1";
     pNetworkInterfaces->Enabled = xsd__boolean__true_;
-   ns8__GetNetworkInterfacesResponse->NetworkInterfaces = pNetworkInterfaces;
+    ns8__GetNetworkInterfacesResponse->NetworkInterfaces = pNetworkInterfaces;
 
-	struct ns3__NetworkInterfaceInfo *pInfo;
+	/*struct ns3__NetworkInterfaceInfo *pInfo;
 	pInfo = (struct ns3__NetworkInterfaceInfo *)soap_malloc(soap,sizeof(struct ns3__NetworkInterface));
 	memset(pInfo,0,sizeof(struct ns3__NetworkInterfaceInfo));
 	pInfo->Name = "eth0";
@@ -2656,24 +2660,28 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 
 	pNetworkInterfaces->Info = pInfo;
 
- /*  struct ns3__NetworkInterfaceLink *pLink;
+    struct ns3__NetworkInterfaceLink *pLink;
      pLink=(struct ns3__NetworkInterfaceLink *)soap_malloc(soap,sizeof(str    uct ns3__NetworkInterfaceLink));
      memset(pLink,0,sizeof(struct ns3__NetworkInterfaceLink));
  */
+	
 	struct ns3__IPv4NetworkInterface *pIPv4;
-	pIPv4 = (struct ns3__IPv4NetworkInterface *)soap_malloc(soap,sizeof(struct ns3__IPv4NetworkInterface));
-	memset(pIPv4,0,sizeof(struct ns3__IPv4NetworkInterface));
+	pIPv4 = (struct ns3__IPv4NetworkInterface *)soap_malloc(soap, sizeof(struct ns3__IPv4NetworkInterface));
+	memset(pIPv4, 0, sizeof(struct ns3__IPv4NetworkInterface));
+	pIPv4->Enabled = xsd__boolean__true_;
 	pNetworkInterfaces->IPv4 = pIPv4;
 
 	struct ns3__IPv4Configuration *pConfig;
-	pConfig = (struct ns3__IPv4Configuration *)soap_malloc(soap,sizeof(struct ns3__IPv4Configuration));
-	memset(pConfig,0,sizeof(struct ns3__IPv4Configuration));
+	pConfig = (struct ns3__IPv4Configuration *)soap_malloc(soap, sizeof(struct ns3__IPv4Configuration));
+	memset(pConfig, 0, sizeof(struct ns3__IPv4Configuration));
+	pConfig->DHCP = xsd__boolean__false_;
 	pIPv4->Config = pConfig;
 
 	struct ns3__PrefixedIPv4Address *pManual;
-	pManual = (struct ns3__PrefixedIPv4Address *)soap_malloc(soap,sizeof(struct ns3__PrefixedIPv4Address));
-	memset(pManual,0,sizeof(struct ns3__PrefixedIPv4Address));
+	pManual = (struct ns3__PrefixedIPv4Address *)soap_malloc(soap, sizeof(struct ns3__PrefixedIPv4Address));
+	memset(pManual, 0, sizeof(struct ns3__PrefixedIPv4Address));
     pManual->Address = "192.168.1.251";
+	pManual->PrefixLength = 32;
     pConfig->Manual = pManual;
 
 	return SOAP_OK;
