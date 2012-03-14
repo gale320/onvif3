@@ -365,10 +365,10 @@ int __ns1__GetAudioOutputs(struct soap* soap, struct _ns2__GetAudioOutputs *ns2_
 
 int __ns1__GetVideoSources(struct soap* soap,struct _ns2__GetVideoSources *ns2__GetVideoSources,struct _ns2__GetVideoSourcesResponse *ns2__GetVideoSourcesResponse)
 {
-    printf("%s\n",__FUNCTION__);
+    printf("%s\n", __FUNCTION__);
     struct ns3__VideoResolution *pVideoResolution;
-    pVideoResolution = (struct ns3__VideoResolution*)soap_malloc(soap,sizeof(struct ns3__VideoResolution));
-    memset(pVideoResolution,0,sizeof(struct ns3__VideoResolution));
+    pVideoResolution = (struct ns3__VideoResolution*)soap_malloc(soap, sizeof(struct ns3__VideoResolution));
+    memset(pVideoResolution, 0, sizeof(struct ns3__VideoResolution));
     pVideoResolution->Width = 1920;
     pVideoResolution->Height = 1080;
 
