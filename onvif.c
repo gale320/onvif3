@@ -308,17 +308,8 @@ char *GetLocalHostIP()
     exit;
   }
 
-  while (fgets(path, sizeof(path)-1, fp) != NULL) {
-    printf("%s", path);
-  }
-
-  int lens = strlen(path);
-  char *back = (char *)malloc(lens);
-  strncpy(back, path, strlen(path -1 ));
-  back[lens - 1] = '\0';
-  pclose(fp);
-  
-  return back;
+ 
+ 
 	/*
     char *ip=NULL;
     int fd;
@@ -2553,7 +2544,7 @@ int __ns8__GetCapabilities(struct soap* soap, struct _ns8__GetCapabilities *ns8_
 
  int  __ns8__SetDPAddresses(struct soap* soap, struct _ns8__SetDPAddresses *ns8__SetDPAddresses, struct _ns8__SetDPAddressesResponse *ns8__SetDPAddressesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
-int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHostname, struct _ns8__GetHostnameResponse *ns8__GetHostnameResponse)
+ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHostname, struct _ns8__GetHostnameResponse *ns8__GetHostnameResponse)
 {
     printf("%s\n",__FUNCTION__);
 	
@@ -2575,97 +2566,54 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 	 
 //	  char *pHostname = 
 	 
-	 
-	 
+		
 	 return SOAP_OK;
 }
 
 
- static char *strings_to_get(char *src)
-{
-    char *back = NULL;
-	const char* pattern = "([0-9]+\\.){3}[0-9]*";
-	regex_t preg;
-	regmatch_t pmatch[10];
-	regcomp(&preg, pattern, REG_EXTENDED);
-	if (regexec(&preg, src, 10, pmatch, 0) != REG_NOMATCH) {
-		int sub_len = pmatch[0].rm_eo - pmatch[0].rm_so;
-        back = (char*)malloc(sub_len+1);
-		memcpy(back, src + pmatch[0].rm_so, sub_len);
-		back[sub_len] = '\0';
-	}
-	return back;
-}
-/*
+
  int __ns8__GetDNS(struct soap* soap, struct _ns8__GetDNS *ns8__GetDNS, struct _ns8__GetDNSResponse *ns8__GetDNSResponse)
  {
 	printf("%s\n", __FUNCTION__);
 
     FILE  *fp;
-   char buf[1000];
-   fp = fopen("/etc/resolv.conf", "r");
-   while ( fgets(buf, 1000, fp) != NULL) {
-        char *p = strstr(buf, "nameserver");
-        		if(p != NULL)
-        		{
-        			char *me = strings_to_get(p);
-        			struct ns3__DNSInformation *pDNSInformation;
-        			pDNSInformation = (struct ns3__DNSInformation *)soap_malloc(soap, sizeof(struct ns3__DNSInformation));
-        			memset(pDNSInformation, 0, sizeof(struct ns3__DNSInformation));
-
-        		//	pDNSInformation->DNSFromDHCP = xsd__boolean__false_;
-        			ns8__GetDNSResponse->DNSInformation = pDNSInformation;
-
-        			struct ns3__IPAddress *pDNSManual = (struct ns3__IPAddress*)soap_malloc(soap,sizeof(struct ns3__IPAddress));
-        			memset(pDNSManual,0,sizeof(struct ns3__IPAddress));
-        			pDNSInformation->DNSManual = pDNSManual;
-
-			//     char *ipv4address = (char*)soap_malloc(soap,strlen(p));
-        	//		memset(ipv4address,0,sizeof(char));
-        	//		strcpy(ipv4address, me);
-        	//		pDNSManual->IPv4Address = &ipv4address;
-					 
-        			pDNSManual->IPv4Address = &me;
-        			free(me);
-        			break;
-        		}
-		fseek(fp, ftell(fp), SEEK_SET);
+    char buf[50];
+    fp = popen("LC_ALL=C cat /etc/resolv.conf | grep 'nameserver' | awk '{print $2}'", "r");
+    if (NULL == fp){
+		printf("Failed to run command\n");
+		exit;
 	}
-    fclose(fp);
+		
+	while ( fgets(buf, 50, fp) != NULL) {
+      printf("%s",buf);
+	}
+	 int lens = strlen(buf);
+	 static char *ipv4Address = (char *)soap_malloc(soap, lens);
+	 memset(ipv4Address, 0, lens);
+	 
+     strncpy(ipv4Address, buf, strlen(buf -1 ));
+     ipv4Address[lens - 1] = '\0';
+	 pclose(fp);
+  
+	
+	 struct ns3__DNSInformation *pDNSInformation;
+	 pDNSInformation = (struct ns3__DNSInformation *)soap_malloc(soap, sizeof(struct ns3__DNSInformation));
+	 memset(pDNSInformation, 0, sizeof(struct ns3__DNSInformation));
+
+	 pDNSInformation->FromDHCP = xsd__boolean__false_;
+	 pDNSInformation->__sizeDNSManual = 1;
+	 ns8__GetDNSResponse->DNSInformation = pDNSInformation;
+
+	 struct ns3__IPAddress *pDNSManual = (struct ns3__IPAddress*)soap_malloc(soap,sizeof(struct ns3__IPAddress));
+	 memset(pDNSManual,0,sizeof(struct ns3__IPAddress));
+	 pDNSInformation->DNSManual = pDNSManual;
+				
+	 pDNSManual->IPv4Address = &ipv4Address;
+				
+        		
     return SOAP_OK;
-}*/
-
-
- int __ns8__GetDNS(struct soap* soap, struct _ns8__GetDNS *ns8__GetDNS, struct _ns8__GetDNSResponse *ns8__GetDNSResponse)
-{
-   printf("%s\n", __FUNCTION__);
-   
-   static char *s = NULL;
-   
-   s = (char *)soap_malloc(soap, 14);
-   memset(s, 0, 14);
-   strcpy(s, "192.168.1.1");
-   
-   struct ns3__DNSInformation *pDNSInformation;
-   pDNSInformation = (struct ns3__DNSInformation *)soap_malloc(soap, sizeof(struct ns3__DNSInformation));
-   memset(pDNSInformation, 0, sizeof(struct ns3__DNSInformation));
-   
-   pDNSInformation->FromDHCP = xsd__boolean__true_;
-   pDNSInformation->__sizeDNSManual = 1;
-   
-   struct ns3__IPAddress *pDNSManual;
-   pDNSManual = (struct ns3__IPAddress *)soap_malloc(soap, sizeof(struct ns3__IPAddress));
-   memset(pDNSManual, 0, sizeof(struct ns3__IPAddress));
-   
-   pDNSManual->Type = ns3__IPType__IPv4;
-   pDNSManual->IPv4Address = &s; 
-   
-   pDNSInformation->DNSManual = pDNSManual;
-   
-   ns8__GetDNSResponse->DNSInformation = pDNSInformation;
-   
-   return SOAP_OK; 
 }
+
 
  int __ns8__SetDNS(struct soap* soap, struct _ns8__SetDNS *ns8__SetDNS, struct _ns8__SetDNSResponse *ns8__SetDNSResponse)
  {
@@ -2706,6 +2654,7 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
  int __ns8__GetNetworkInterfaces(struct soap* soap,struct _ns8__GetNetworkInterfaces *ns8__GetNetworkInterfaces,struct _ns8__GetNetworkInterfacesResponse *ns8__GetNetworkInterfacesResponse)
  {
 	printf("%s\n", __FUNCTION__);
+	ns8__GetNetworkInterfacesResponse->__sizeNetworkInterfaces = 1;
 	
 	struct ns3__NetworkInterface *pNetworkInterfaces;
     pNetworkInterfaces = (struct ns3__NetworkInterface *)soap_malloc(soap, sizeof(struct ns3__NetworkInterface));
@@ -2715,20 +2664,6 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
     pNetworkInterfaces->Enabled = xsd__boolean__true_;
     ns8__GetNetworkInterfacesResponse->NetworkInterfaces = pNetworkInterfaces;
 
-	struct ns3__NetworkInterfaceInfo *pInfo;
-	pInfo = (struct ns3__NetworkInterfaceInfo *)soap_malloc(soap,sizeof(struct ns3__NetworkInterface));
-	memset(pInfo,0,sizeof(struct ns3__NetworkInterfaceInfo));
-	pInfo->Name = "eth0";
-	pInfo->HwAddress = "FE:A2:5E:2A:0D:2D";
-	pInfo->MTU = (int *)1500;
-
-	pNetworkInterfaces->Info = pInfo;
-
-/*
-    struct ns3__NetworkInterfaceLink *pLink;
-     pLink=(struct ns3__NetworkInterfaceLink *)soap_malloc(soap,sizeof(str    uct ns3__NetworkInterfaceLink));
-     memset(pLink,0,sizeof(struct ns3__NetworkInterfaceLink));
- */
 	
 	struct ns3__IPv4NetworkInterface *pIPv4;
 	pIPv4 = (struct ns3__IPv4NetworkInterface *)soap_malloc(soap, sizeof(struct ns3__IPv4NetworkInterface));
@@ -2736,17 +2671,22 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 	pIPv4->Enabled = xsd__boolean__true_;
 	pNetworkInterfaces->IPv4 = pIPv4;
 
+	
 	struct ns3__IPv4Configuration *pConfig;
 	pConfig = (struct ns3__IPv4Configuration *)soap_malloc(soap, sizeof(struct ns3__IPv4Configuration));
 	memset(pConfig, 0, sizeof(struct ns3__IPv4Configuration));
 	pConfig->DHCP = xsd__boolean__false_;
+	pConfig->__sizeManual = 1;
+	pConfig->__size = 1;
 	pIPv4->Config = pConfig;
 
+	
 	struct ns3__PrefixedIPv4Address *pManual;
 	pManual = (struct ns3__PrefixedIPv4Address *)soap_malloc(soap, sizeof(struct ns3__PrefixedIPv4Address));
 	memset(pManual, 0, sizeof(struct ns3__PrefixedIPv4Address));
+	
     pManual->Address = "192.168.1.251";
-	pManual->PrefixLength = 32;
+	pManual->PrefixLength = 24;
     pConfig->Manual = pManual;
 
 	return SOAP_OK;
@@ -2758,7 +2698,43 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 
  int  __ns8__SetNetworkProtocols(struct soap* soap, struct _ns8__SetNetworkProtocols *ns8__SetNetworkProtocols, struct _ns8__SetNetworkProtocolsResponse *ns8__SetNetworkProtocolsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns8__GetNetworkDefaultGateway(struct soap* soap, struct _ns8__GetNetworkDefaultGateway *ns8__GetNetworkDefaultGateway, struct _ns8__GetNetworkDefaultGatewayResponse *ns8__GetNetworkDefaultGatewayResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int  __ns8__GetNetworkDefaultGateway(struct soap* soap, struct _ns8__GetNetworkDefaultGateway *ns8__GetNetworkDefaultGateway, struct _ns8__GetNetworkDefaultGatewayResponse *ns8__GetNetworkDefaultGatewayResponse)
+ {         
+	 printf("%s\n",__FUNCTION__);
+	  
+	 FILE *fp;
+	 char buf[100];
+
+	 fp = popen("LC_ALL=C cat /etc/network/interfaces | grep 'gateway' | awk '{print $2}'", "r");
+	 if(NULL==fp)
+	{
+	  printf("Failed to run command\n");
+	  exit;
+	}
+     
+	 while(fgets(buf, 100, fp)!= NULL)
+	{
+		printf("%s",buf);
+	}
+    
+	int lens = strlen(buf);
+	static char *ipv4Address = (char *)soap_malloc(soap, lens);
+	memset(ipv4Address, 0, lens);
+	strncpy(ipv4Address, buf, lens-1);
+    ipv4Address[lens-1] = '\0';
+	pclose(fp);
+	
+	
+	struct ns3__NetworkGateway *pNetworkGateway;
+	pNetworkGateway = (struct ns3__NetworkGateway *)soap_malloc(soap,sizeof(struct ns3__NetworkGateway));
+	memset(pNetworkGateway,0,sizeof(struct ns3__NetworkGateway));
+	pNetworkGateway->__sizeIPv4Address = 1;
+	pNetworkGateway->IPv4Address = &ipv4Address;
+
+	ns8__GetNetworkDefaultGatewayResponse->NetworkGateway=pNetworkGateway;
+
+    return SOAP_OK;
+}
 
  int  __ns8__SetNetworkDefaultGateway(struct soap* soap, struct _ns8__SetNetworkDefaultGateway *ns8__SetNetworkDefaultGateway, struct _ns8__SetNetworkDefaultGatewayResponse *ns8__SetNetworkDefaultGatewayResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -2838,10 +2814,7 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
 
  int  __ns8__GetServiceCapabilities(struct soap* soap, struct _ns8__GetServiceCapabilities *ns8__GetServiceCapabilities, struct _ns8__GetServiceCapabilitiesResponse *ns8__GetServiceCapabilitiesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
-int __ns8__GetDeviceInformation_(struct soap* soap, struct _ns8__GetDeviceInformation *ns8__GetDeviceInformation, struct _ns8__GetDeviceInformationResponse *ns8__GetDeviceInformationResponse)
-{
-    return SOAP_OK;
-}
+int __ns8__GetDeviceInformation_(struct soap* soap, struct _ns8__GetDeviceInformation *ns8__GetDeviceInformation, struct _ns8__GetDeviceInformationResponse *ns8__GetDeviceInformationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
  int  __ns8__SetSystemDateAndTime_(struct soap* soap, struct _ns8__SetSystemDateAndTime *ns8__SetSystemDateAndTime, struct _ns8__SetSystemDateAndTimeResponse *ns8__SetSystemDateAndTimeResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
@@ -2924,43 +2897,7 @@ int __ns8__GetDeviceInformation_(struct soap* soap, struct _ns8__GetDeviceInform
 
  int  __ns8__SetNetworkProtocols_(struct soap* soap, struct _ns8__SetNetworkProtocols *ns8__SetNetworkProtocols, struct _ns8__SetNetworkProtocolsResponse *ns8__SetNetworkProtocolsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns8__GetNetworkDefaultGateway_(struct soap* soap, struct _ns8__GetNetworkDefaultGateway *ns8__GetNetworkDefaultGateway, struct _ns8__GetNetworkDefaultGatewayResponse *ns8__GetNetworkDefaultGatewayResponse)
- {
-	  printf("%s\n",__FUNCTION__);
-	  FILE *fp;
-	  char buf[1000];
-
-	  fp = popen("/bin/cat /etc/network/interfaces","r");
-	  if(NULL==fp)
-	  {
-		  printf("Failed to run command\n");
-		  exit;
-	  }
-
-	  while(fgets(buf,1000,fp)!= NULL)
-	  {
-		  char *p = strstr(buf,"gateway");
-              if(NULL != p)
-              {
-            	  char *me = strings_to_get(p);
-
-            	  struct ns3__NetworkGateway *pNetworkGateway;
-            	  pNetworkGateway = (struct ns3__NetworkGateway *)soap_malloc(soap,sizeof(struct ns3__NetworkGateway));
-                memset(pNetworkGateway,0,sizeof(struct ns3__NetworkGateway));
-                pNetworkGateway->IPv4Address = &me;
-
-                ns8__GetNetworkDefaultGatewayResponse->NetworkGateway=pNetworkGateway;
-
-               free(me);
-               break;
-             }
-        fseek(fp,ftell(fp),SEEK_SET);
-
-	 }
-
-	  fclose(fp);
-      return SOAP_OK;
- }
+ int  __ns8__GetNetworkDefaultGateway_(struct soap* soap, struct _ns8__GetNetworkDefaultGateway *ns8__GetNetworkDefaultGateway, struct _ns8__GetNetworkDefaultGatewayResponse *ns8__GetNetworkDefaultGatewayResponse){printf("%s\n",__FUNCTION__);return SOAP_OK; }
 
  int  __ns8__SetNetworkDefaultGateway_(struct soap* soap, struct _ns8__SetNetworkDefaultGateway *ns8__SetNetworkDefaultGateway, struct _ns8__SetNetworkDefaultGatewayResponse *ns8__SetNetworkDefaultGatewayResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
