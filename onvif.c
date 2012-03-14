@@ -297,6 +297,29 @@ int cJSON_ToFile(const char *pszFile, cJSON *pszJson, char *pszBuf)
 
 char *GetLocalHostIP()
 {  
+	
+	 FILE *fp;
+  int status;
+  char path[30];
+
+  fp = popen("LC_ALL=C ifconfig  | grep 'inet addr:'| grep -v '127.0.0.1' |cut -d: -f2 | awk '{ print $1}'", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit;
+  }
+
+  while (fgets(path, sizeof(path)-1, fp) != NULL) {
+    printf("%s", path);
+  }
+
+  int lens = strlen(path);
+  char *back = (char *)malloc(lens);
+  strncpy(back, path, strlen(path -1 ));
+  back[lens - 1] = '\0';
+  pclose(fp);
+  
+  return back;
+	/*
     char *ip=NULL;
     int fd;
     struct ifreq ifr; ///if.h
@@ -319,6 +342,7 @@ char *GetLocalHostIP()
     }
     
     return ip;
+	 * */
 }
 
 static int SetIPConf(const char *pszIP, const char *pszMask, const char *pszGateway)
@@ -2613,7 +2637,12 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
  int __ns8__GetDNS(struct soap* soap, struct _ns8__GetDNS *ns8__GetDNS, struct _ns8__GetDNSResponse *ns8__GetDNSResponse)
 {
    printf("%s\n", __FUNCTION__);
-   char *s = "192.168.1.1";
+   
+   char *s = NULL;
+   
+   s = (char *)soap_malloc(soap, 14);
+   memset(s, 0, 14);
+   strcpy(s, "192.168.1.1");
    
    struct ns3__DNSInformation *pDNSInformation;
    pDNSInformation = (struct ns3__DNSInformation *)soap_malloc(soap, sizeof(struct ns3__DNSInformation));
