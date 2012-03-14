@@ -2634,11 +2634,13 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
     fclose(fp);
     return SOAP_OK;
 }*/
+
+
  int __ns8__GetDNS(struct soap* soap, struct _ns8__GetDNS *ns8__GetDNS, struct _ns8__GetDNSResponse *ns8__GetDNSResponse)
 {
    printf("%s\n", __FUNCTION__);
    
-   char *s = NULL;
+   static char *s = NULL;
    
    s = (char *)soap_malloc(soap, 14);
    memset(s, 0, 14);
@@ -2648,7 +2650,8 @@ int __ns8__GetHostname(struct soap* soap, struct _ns8__GetHostname *ns8__GetHost
    pDNSInformation = (struct ns3__DNSInformation *)soap_malloc(soap, sizeof(struct ns3__DNSInformation));
    memset(pDNSInformation, 0, sizeof(struct ns3__DNSInformation));
    
-   pDNSInformation->FromDHCP = xsd__boolean__false_;
+   pDNSInformation->FromDHCP = xsd__boolean__true_;
+   pDNSInformation->__sizeDNSManual = 1;
    
    struct ns3__IPAddress *pDNSManual;
    pDNSManual = (struct ns3__IPAddress *)soap_malloc(soap, sizeof(struct ns3__IPAddress));
