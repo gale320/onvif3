@@ -171,7 +171,6 @@ encode_t encode_set[4];
 const char *FIFO_Web_Encode = "/dev/Fifo_WTE";
 
 
-
 /**************************************************************
 函数功能：创建通讯FIFO并初始化
 FiFoInit()的内部子函数
@@ -499,8 +498,6 @@ int setfifoimage(unsigned char Fifo_ID, unsigned char imgID, int imgvalue) {
 	close(fifo_fd);
 }
 
-
-
 void shutterfifo( unsigned char Fifo_ID,unsigned char imgID,char *imagevalue, int nValLen)
 {
 	wta_fifocmd_t imagefifo;
@@ -525,9 +522,8 @@ void shutterfifo( unsigned char Fifo_ID,unsigned char imgID,char *imagevalue, in
   	}
 }
 
-
-static void set_image_Exposure(struct _ns12__SetImagingSettings *ns12__SetImagingSettings) 
-{
+static void set_image_Exposure(
+		struct _ns12__SetImagingSettings *ns12__SetImagingSettings) {
 	char shutterTmp[12] = { 0 };
 
 	setfifoimage(WTA_IMAGE_QULITY_SET, WTA_AE_METER_MODE_SET,
@@ -558,6 +554,7 @@ static void set_image_Exposure(struct _ns12__SetImagingSettings *ns12__SetImagin
 
 	}
 }
+
 
 int __ns12__SetImagingSettings(struct soap* soap, struct _ns12__SetImagingSettings *ns12__SetImagingSettings, struct _ns12__SetImagingSettingsResponse *ns12__SetImagingSettingsResponse) 
 {
@@ -623,8 +620,6 @@ int __ns12__SetImagingSettings(struct soap* soap, struct _ns12__SetImagingSettin
 	//nRet = cJSON_ToFile("/etc/ambaipcam/IPC_Q313/config/pwd/onvif.json", root, pszBuf);
 	return SOAP_OK;
 }
-
-
 
 
 int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOptions, struct _ns12__GetOptionsResponse *ns12__GetOptionsResponse)
@@ -1660,7 +1655,159 @@ int  __ns13__GetNode(struct soap* soap, struct _ns13__GetNode *ns13__GetNode, st
 	return SOAP_OK;
 }
 
-int  __ns13__SetConfiguration(struct soap* soap, struct _ns13__SetConfiguration *ns13__SetConfiguration, struct _ns13__SetConfigurationResponse *ns13__SetConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+int  __ns13__SetConfiguration(struct soap* soap, struct _ns13__SetConfiguration *ns13__SetConfiguration, struct _ns13__SetConfigurationResponse *ns13__SetConfigurationResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+		cJSON *root = NULL;
+	cJSON *pCfg = NULL;
+	cJSON *pFrp = NULL;
+	cJSON *pPcf = NULL;
+	cJSON *pToken = NULL;
+	cJSON *pName = NULL;
+	cJSON *pUseC = NULL;
+	cJSON *pNToken = NULL;
+	cJSON *pPspeed = NULL;
+	cJSON *pPanTilt = NULL;
+	cJSON *pZoom = NULL;
+	cJSON *pX = NULL;
+	cJSON *pY = NULL;
+	cJSON *pZ = NULL;
+	char *pszBuf = NULL;
+	
+	int nRet = 0;
+	
+	
+	
+	//load CONFIG_FILE
+	nRet = cJSON_FromFile(CONFIG_FILE, &root, &pszBuf);
+	 if (0 != nRet) {
+		 printf("Load Json file failed.\n");
+		 return -101;
+	}
+	
+	//get ConfigurationSettings
+	pCfg = cJSON_GetObjectItem(root, "ConfigurationSettings");
+	if (NULL == pCfg) {
+	  	printf("get pCfg failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return SOAP_FAULT;
+	}
+	
+	
+	//set ForcePersistence
+	pFrp = cJSON_GetObjectItem(pCfg, "ForcePersistence");
+	if (NULL == pFrp) {
+	    printf("get pFrp failed. ErrInfo: %s\n", cJSON_GetErrorPtr());	
+		return SOAP_FAULT;
+	 }
+	pFrp->type = ns13__SetConfiguration->ForcePersistence;
+	
+	//get PTZConfiguration
+	pPcf = cJSON_GetObjectItem(pCfg, "PTZConfiguration");
+	if (NULL == pPcf) {
+	    printf("get pPcf failed. ErrInfo: %s\n", cJSON_GetErrorPtr());	
+		return SOAP_FAULT;
+	}
+	
+	
+	//set token
+	pToken = cJSON_GetObjectItem(pPcf, "token");
+    if (NULL == pToken) {
+	   printf("get pToken failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}	
+	pToken->string = ns13__SetConfiguration->PTZConfiguration->token;
+	
+	
+	//set Name
+	pName = cJSON_GetObjectItem(pPcf, "Name");
+	if (NULL == pName) {
+	   printf("get pName failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}	
+	pToken->string = ns13__SetConfiguration->PTZConfiguration->Name;
+    
+	
+	//set UseCount
+    pUseC = cJSON_GetObjectItem(pPcf, "UseCount");
+	if (NULL == pUseC) {
+	   printf("get pUseC failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}	
+	pToken->valueint = ns13__SetConfiguration->PTZConfiguration->UseCount;
+	
+	
+	//set NodeToken
+	pNToken = cJSON_GetObjectItem(pPcf, "NodeToken");
+	if (NULL == pNToken) {
+	   printf("get pNToken failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}	
+	pToken->string = ns13__SetConfiguration->PTZConfiguration->NodeToken;
+	
+	
+	//get PTZSpeed
+	pPspeed = cJSON_GetObjectItem(pPcf, "PTZSpeed");
+	if (NULL == pPspeed) {
+	   printf("get pPspeed failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}	
+	
+	
+	//get PanTilt
+	pPanTilt = cJSON_GetObjectItem(pPcf, "PanTilt");
+	if (NULL == pPanTilt) {
+	   printf("get pPanTilt failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}	
+	
+	
+	//set x of PanTilt
+	pX = cJSON_GetObjectItem(pPanTilt, "x");
+	if (NULL == pX) {
+	   printf("get pX failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}	
+	pX->valuedouble = ns13__SetConfiguration->PTZConfiguration->DefaultPTZSpeed->PanTilt->x;
+   
+   
+	//set y of PanTilt
+	pY = cJSON_GetObjectItem(pPanTilt, "y");
+	if (NULL == pY) {
+	   printf("get pY failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}	
+	pY->valuedouble = ns13__SetConfiguration->PTZConfiguration->DefaultPTZSpeed->PanTilt->y;
+	
+	
+	
+	//get Zoom
+	pZoom = cJSON_GetObjectItem(pPcf, "Zoom");
+	if (NULL == pZoom) {
+	   printf("get pPanTilt failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}	
+	
+
+    //set Zoom
+	pZ = cJSON_GetObjectItem(pZoom, "x");
+	if (NULL == pZ) {
+	   printf("get pZ failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	   return SOAP_FAULT;
+	}
+	pZ->valuedouble = ns13__SetConfiguration->PTZConfiguration->DefaultPTZSpeed->Zoom->x;
+	
+	
+	
+	//save the settings
+	nRet = cJSON_ToFile(CONFIG_FILE, root, pszBuf);
+    if (0 != nRet) {
+		printf("Save Json file failed.\n");
+		return -102;
+	}	
+	
+	return SOAP_OK;
+}
 
 int  __ns13__GetConfigurationOptions(struct soap* soap, struct _ns13__GetConfigurationOptions *ns13__GetConfigurationOptions, struct _ns13__GetConfigurationOptionsResponse *ns13__GetConfigurationOptionsResponse)
 {
@@ -1799,9 +1946,110 @@ int  __ns13__GetConfigurationOptions(struct soap* soap, struct _ns13__GetConfigu
  	return SOAP_OK;
 }
 
- int  __ns13__GotoHomePosition(struct soap* soap, struct _ns13__GotoHomePosition *ns13__GotoHomePosition, struct _ns13__GotoHomePositionResponse *ns13__GotoHomePositionResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int  __ns13__GotoHomePosition(struct soap* soap, struct _ns13__GotoHomePosition *ns13__GotoHomePosition, struct _ns13__GotoHomePositionResponse *ns13__GotoHomePositionResponse)
+ {
+ 	printf("%s\n",__FUNCTION__);
+ 	
+ 	cJSON *root = NULL;
+	 cJSON *pJsonHome = NULL;
+	 cJSON *pVal = NULL;
+	 char *pszBuf = NULL;
+	 int nRet = 0;
+	 int itoke;
+	 
+	 nRet = cJSON_FromFile(CONFIG_FILE, &root, &pszBuf);
+	 if(0 != nRet) {
+		 printf("Load Json file failed.\n");
+		 return -101;
+	}
+	 
+	 pJsonHome = cJSON_GetObjectItem(root, "Home");
+	 if(NULL == pJsonHome) {
+		 printf("Get Home failed. ErrInfo: %s\n",cJSON_GetErrorPtr());
+		 return SOAP_FAULT;
+	 }
+	 
+	 pVal =  cJSON_GetObjectItem(pJsonHome, "Token");
+	 if (NULL == pVal) {
+		printf("Get Val failed. ErrInfo: %s\n",cJSON_GetErrorPtr()); 
+		return SOAP_FAULT;
+	 }
+	 itoke = atoi(pVal->valuestring);
+	
+	  
+	  int nFifofd = 0;
+	  if (0 > SingleFifoinit("/dev/Fifo_WTE", &nFifofd, O_WRONLY)) {
+		  printf("Open /dev/Fifo_WTE failed.\n");  
+	   }
+	 
+	  SendCmdToDevice(nFifofd, 0x03, 0x10, itoke);
+	  
+	  close(nFifofd);
+	 
+ 	
+ 	return SOAP_OK;
+ }
 
- int  __ns13__SetHomePosition(struct soap* soap, struct _ns13__SetHomePosition *ns13__SetHomePosition, struct _ns13__SetHomePositionResponse *ns13__SetHomePositionResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int  __ns13__SetHomePosition(struct soap* soap, struct _ns13__SetHomePosition *ns13__SetHomePosition, struct _ns13__SetHomePositionResponse *ns13__SetHomePositionResponse)
+ {
+ 	printf("%s\n",__FUNCTION__);
+ 	
+ 	//cJson definition
+	cJSON *root = NULL;
+	cJSON *pHome = NULL;
+	cJSON *pVal = NULL;
+	char *pszBuf = NULL;
+	int nRet = 0;
+	int token;
+	 
+	 //load Json file
+	 nRet = cJSON_FromFile(CONFIG_FILE, &root, &pszBuf);
+	 if (0 != nRet) {
+	   printf("Load Json file failed.\n"); 	 
+	    return -101;	 
+	 }
+	 
+	 //get Home
+	  pHome = cJSON_GetObjectItem(root, "Home");
+	  if (NULL == pHome) {
+		printf("Get Home failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return SOAP_FAULT;
+      }
+	  
+	  //check Token exit
+	  pVal = cJSON_GetObjectItem(pHome, "Token");
+	  if (NULL != pVal) {
+		return soap_sender_fault_subcode(soap, "InvalidArgVal", "HomePositionExist", "The homeposition already exist");
+	  }
+	  else {
+		if  (strcpy(pVal->valuestring, ns13__SetHomePosition->ProfileToken) == NULL) {
+			 printf("strcpy failed\n");
+		}
+		else {
+		 token = atoi(pVal->valuestring);
+	     nRet = cJSON_ToFile(CONFIG_FILE, root, pszBuf);
+	     if (0 != nRet) {
+		    printf("Save Json file failed.\n");	 
+			return SOAP_FAULT;
+		}
+	  }
+		  
+   }
+	
+    //Send To Device
+	
+	//Open receive fifo for send
+	int nFifofd = 0;
+	if (0 > SingleFifoinit("/dev/Fifo_WTE", &nFifofd, O_WRONLY)) {
+	    printf("Open /dev/Fifo_WTE failed.\n");
+	}
+	
+	SendCmdToDevice(nFifofd, 0x03, 0x0F, token);
+  
+    close(nFifofd);
+ 	return SOAP_OK;
+ }
+
 
 int  __ns13__ContinuousMove(struct soap* soap, struct _ns13__ContinuousMove *ns13__ContinuousMove, struct _ns13__ContinuousMoveResponse *ns13__ContinuousMoveResponse)
 {
