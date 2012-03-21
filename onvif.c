@@ -14,6 +14,10 @@
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
 
+
+
+#define CONFIG_FILE			"/etc/ambaipcam/IPC_Q313/config/onvif.json"
+
 typedef struct ONVIF_FIFO_Comand_s 
 {
 	unsigned char Cmdhead;
@@ -166,31 +170,24 @@ encode_t encode_set[4];
 
 const char *FIFO_Web_Encode = "/dev/Fifo_WTE";
 
-/*************************谌庆云**********************/
-
-
-static void set_image_Exposure(struct _ns12__SetImagingSettings *ns12__SetImagingSettings );
-
-
-
-
 
 
 /**************************************************************
-�����ܣ�����ͨѶFIFO����ʼ��
-FiFoInit()���ڲ��Ӻ���
-����
-(���)
-const char *fifopath  ����fifo��ϵͳ·��
-int *fifofd           FIFO ������
-(����)��
-���أ�(int)  1,�ɹ�; -1,ʧ��
+函数功能：创建通讯FIFO并初始化
+FiFoInit()的内部子函数
+参数：
+(入口)
+const char *fifopath  创建fifo的系统路径
+int *fifofd           FIFO 描述符
+(出口)无
+返回：(int)  1,成功; -1,失败
 
-��ͷ�ļ��� <unistd.h> <sys/types.h> <sys/stat.h> <fcntl.h>
-��Ҫ˼·��
-���÷���: FiFoInit()����
+包含头文件： <unistd.h> <sys/types.h> <sys/stat.h> <fcntl.h>
+主要思路：
+调用方法: FiFoInit()调用
 
-��������:2007/7/13
+创建日期:2007/7/13
+
 ****************************************************************/
 int SingleFifoinit(const char *fifopath, int *fifofd, int nMode)
 {
@@ -209,108 +206,65 @@ int SingleFifoinit(const char *fifopath, int *fifofd, int nMode)
     return 1;
 }
 
-// Load JSON File
-int cJSON_FromFile(const char *pszFile, cJSON **pszJson, char **pszBuf)
+// 发送控制指令到设备
+int SendCmdToDevice(int nfd, int nCMD, int nType, int nValue)
 {
-	char *pszData = NULL;
-	FILE *pFile  = NULL;
-	int nFileLen = 0;
-	int nReadLen = 0;
+		ONVIF_FIFO_Comand_t szPTZCmd;
+		int nSendLen = 0;
 
-	if (NULL == pFile) {
-		printf("Open file %s failed. Err: %s", pszFile, strerror(errno));
-		return -1;
-	}
-
-	fseek(pFile, 0, SEEK_END);
-
-	nFileLen = ftell(pFile);
-	if (-1 == nFileLen) {
-		perror("ftell");
-		return -2;
-	}
-
-	fseek(pFile, 0, SEEK_SET);
-
-	pszData = (char *)malloc(nFileLen + 1);
-	if (NULL == pszData) {
-		perror("malloc");
-		return -3;
-	}
-
-	nReadLen = fread(pszData, 1, nFileLen, pFile);
-	if (nFileLen != nReadLen) {
-		perror("fread");
-		return -4;
-	}
-
-	*pszBuf = pszData;
-
-	*pszJson = cJSON_Parse(pszData);
-	if (NULL == *pszJson) {
-		printf("CJSON_Parse failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
-		return -5;
-	}
-
-	fclose(pFile);
-
-	return 0;
+		memset(&szPTZCmd, 0, sizeof(ONVIF_FIFO_Comand_t));
+		
+		szPTZCmd.Cmdhead = 0x0A;
+		szPTZCmd.Cmd_ver = 0x01;
+		szPTZCmd.Cmd_ID  = nCMD;
+	  szPTZCmd.Cmd_Para[0] = nType;
+		szPTZCmd.Cmd_Para[1] = nValue;
+		
+		nSendLen = write(nfd, &szPTZCmd, sizeof(szPTZCmd));
+    if (0 > nSendLen) {
+        perror("Send Command To IPC_Q313");
+        return -1;
+    }
+    
+    printf("Command: %x %x %x %x %x\n", szPTZCmd.Cmdhead, szPTZCmd.Cmd_ver, szPTZCmd.Cmd_ID, szPTZCmd.Cmd_Para[0], szPTZCmd.Cmd_Para[1]);
+    
+    return 0;
 }
 
-// Save JSON data to file
-int cJSON_ToFile(const char *pszFile, cJSON *pszJson, char *pszBuf)
+// 发送控制指令到设备
+// 通过字符数组形式
+int SendCmdToDevicebyChar(int nfd, int nCMD, int nType, char *pszVal, int nLen)
 {
-	char *pszData = NULL;
-	FILE *pFile   = NULL;
-	int nWriteLen = 0;
+		ONVIF_FIFO_Comand_t szPTZCmd;
+		int nSendLen = 0;
 
-	//释放FromFile的申请内存空间
-	free(pszBuf);
-
-	pFile = fopen(pszFile, "rb+");
-	if (NULL == pFile) {
-		printf("Open file %s failed. Err: %s", pszFile, strerror(errno));
-		return -1;
-	}
-
-	pszData = cJSON_Print(pszJson);
-	if (NULL == pszData) {
-		printf("cJSON_Print failed. Err: %s\n", cJSON_GetErrorPtr());
-		return -2;
-	}
-
-	cJSON_Delete(pszJson);
-	printf("%s\n", pszData);
-
-	// write to file
-	nWriteLen = fwrite(pszData, strlen(pszData), 1, pFile);
-	if (1 != nWriteLen) {
-		perror("fwrite");
-		return -3;
-	}
-
-	free(pszData);
-	fclose(pFile);
-
-	return 0;
+		memset(&szPTZCmd, 0, sizeof(ONVIF_FIFO_Comand_t));
+		
+		szPTZCmd.Cmdhead = 0x0A;
+		szPTZCmd.Cmd_ver = 0x01;
+		szPTZCmd.Cmd_ID  = nCMD;
+	  szPTZCmd.Cmd_Para[0] = nType;
+	  
+	  if (11 < nLen) {
+	  	printf("Parament length > 11.\n");
+	  	return -2;
+	  }
+	  memcpy(szPTZCmd.Cmd_Para + 1, pszVal, nLen);
+		
+		nSendLen = write(nfd, &szPTZCmd, sizeof(szPTZCmd));
+    if (0 > nSendLen) {
+        perror("Send Command To IPC_Q313");
+        return -1;
+    }
+    
+    printf("Command: %x %x %x %x %x\n", szPTZCmd.Cmdhead, szPTZCmd.Cmd_ver, szPTZCmd.Cmd_ID, szPTZCmd.Cmd_Para[0], szPTZCmd.Cmd_Para[1]);
+    
+    return 0;
 }
 
 char *GetLocalHostIP()
 {  
 	
-	 FILE *fp;
-  int status;
-  char path[30];
-
-  fp = popen("LC_ALL=C ifconfig  | grep 'inet addr:'| grep -v '127.0.0.1' |cut -d: -f2 | awk '{ print $1}'", "r");
-  if (fp == NULL) {
-    printf("Failed to run command\n" );
-    exit;
-  }
-
- 
- 
-	/*
     char *ip=NULL;
     int fd;
     struct ifreq ifr; ///if.h
@@ -320,7 +274,7 @@ char *GetLocalHostIP()
     {
     	memset(&ifr, 0, sizeof(ifr));
     	
-    	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ - 1);
+    	strncpy(ifr.ifr_name, "eth4", IFNAMSIZ - 1);
     	
     	if(ioctl(fd, SIOCGIFADDR, &ifr) == -1) {
     		perror("ioctl error");
@@ -333,7 +287,6 @@ char *GetLocalHostIP()
     }
     
     return ip;
-	 * */
 }
 
 static int SetIPConf(const char *pszIP, const char *pszMask, const char *pszGateway)
@@ -430,73 +383,95 @@ int __ns1__GetVideoSources(struct soap* soap,struct _ns2__GetVideoSources *ns2__
 
  int  __ns12__GetServiceCapabilities(struct soap* soap, struct _ns12__GetServiceCapabilities *ns12__GetServiceCapabilities, struct _ns12__GetServiceCapabilitiesResponse *ns12__GetServiceCapabilitiesResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
-
-float *get_json_valude(struct soap* soap, const char *name,const char *father)
+int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettings *ns12__GetImagingSettings, struct _ns12__GetImagingSettingsResponse *ns12__GetImagingSettingsResponse)
 {
-	float *back =  (float *)soap_malloc(soap, sizeof(float));
-    memset(back, 0, sizeof(float));
+    printf("%s\n",__FUNCTION__);
+    float a10086 = 0.0;
+    
+    struct ns3__BacklightCompensation20* pBacklightCompensation;
+    struct ns3__Exposure20* pExposure;
+    struct ns3__FocusConfiguration20* pFocusConfiguration;
+    enum ns3__IrCutFilterMode* pIrCutFilter;
+    struct ns3__WhiteBalance20* pWhiteBalance;
+    struct ns3__WideDynamicRange20* pWideDynamicRange;
+    pBacklightCompensation = (struct ns3__BacklightCompensation20*)soap_malloc(soap,sizeof(struct ns3__BacklightCompensation20));
+    pExposure = (struct ns3__Exposure20*)soap_malloc(soap,sizeof(struct ns3__Exposure20));
+    pFocusConfiguration = (struct ns3__FocusConfiguration20*)soap_malloc(soap,sizeof(struct ns3__FocusConfiguration20));
+    pIrCutFilter = (enum ns3__IrCutFilterMode*)soap_malloc(soap,sizeof(enum ns3__IrCutFilterMode));
+    pWhiteBalance = (struct ns3__WhiteBalance20*)soap_malloc(soap,sizeof(struct ns3__WhiteBalance20));
+    pWideDynamicRange = (struct ns3__WideDynamicRange20*)soap_malloc(soap,sizeof(struct ns3__WideDynamicRange20));    
+    memset(pBacklightCompensation,0,sizeof(struct ns3__BacklightCompensation20));
+    memset(pExposure,0,sizeof(struct ns3__Exposure20));
+    memset(pFocusConfiguration,0,sizeof(struct ns3__FocusConfiguration20)); 
+    memset(pIrCutFilter,0,sizeof(enum ns3__IrCutFilterMode));
+    memset(pWhiteBalance,0,sizeof(struct ns3__WhiteBalance20));
+    memset(pWideDynamicRange,0,sizeof(struct ns3__WideDynamicRange20));
 
-	cJSON *root = NULL;
-	cJSON *pJsonPreset = NULL;
-	cJSON *pNode = NULL;
-	cJSON *pVal = NULL;
-	char *pszBuf = NULL;
-	int nRet = 0;
+    //背光补偿
+    pBacklightCompensation->Mode = ns3__BacklightCompensationMode__OFF;
+    pBacklightCompensation->Level= &a10086;//0
 
-	nRet = cJSON_FromFile("/etc/ambaipcam/IPC_Q313/config/pwd/onvif.json", &root, &pszBuf);
-	if (0 != nRet) {
-		printf("Load Json file failed.\n");
-		return NULL;
-	}
+    //曝光时间
+    pExposure->Mode = ns3__ExposureMode__AUTO;
+    #if 0
+    struct ns3__Rectangle *pWindow;
+    pWindow = (struct ns3__Rectangle*)soap_malloc(soap,sizeof(struct ns3__Rectangle));
+    memset(pWindow,0,sizeof(struct ns3__Rectangle));
+    pWindow->bottom = &a10086;
+    pWindow->left   = &a10086;
+    pWindow->right  = &a10086;
+    pWindow->top    = &a10086;
+    enum ns3__ExposurePriority *pPriority;
+    pPriority= (enum ns3__ExposurePriority*)soap_malloc(soap,sizeof(enum ns3__ExposurePriority));
+    memset(pPriority,0,sizeof(enum ns3__ExposurePriority));
+    *pPriority = ns3__ExposurePriority__FrameRate;
+    
+    pExposure->Priority = pPriority;
+    pExposure->Window = pWindow;
+    pExposure->MaxExposureTime = &a10086;
+    pExposure->MinExposureTime = &a10086;
+    pExposure->MinGain = &a10086;
+    pExposure->MaxGain = &a10086;
+    pExposure->MaxIris = &a10086;
+    pExposure->MinIris = &a10086;
+    pExposure->Gain = &a10086;
+    pExposure->Iris = &a10086;
+    pExposure->ExposureTime = &a10086;
+    #endif
 
-	pJsonPreset = cJSON_GetObjectItem(root, father);
-	if (NULL == pJsonPreset) {
-		printf("Get Preset failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
-		return NULL;
-	}
-	int nCounts = cJSON_GetArraySize(pJsonPreset);
-	int nIdx = 0;
-	int nArryId = 0;
-	int nFind = 0;
-
-	printf("Count: %d\n", nCounts);
-
-	pNode = cJSON_GetArrayItem(pJsonPreset, nIdx);
-	if (NULL == pNode) {
-		printf("Get Node failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
-		return NULL;
-	}
-	pVal = cJSON_GetObjectItem(pNode, name);
-	if (NULL != pVal) {
-		char *pszName = NULL;
-		pszName = (char *) soap_malloc(soap, 64);
-	   memset(pszName, 0, 64);
-		*back = atof(pVal->valuestring);
-	}
-	else
-		return NULL;
-   return back;
-}
-
-
-int __ns12__GetImagingSettings(struct soap* soap, struct _ns12__GetImagingSettings *ns12__GetImagingSettings,
-		struct _ns12__GetImagingSettingsResponse *ns12__GetImagingSettingsResponse) {
-	printf("%s\n", __FUNCTION__);
-
-	struct ns3__ImagingSettings20* pImagingSettings20;
-	pImagingSettings20 = (struct ns3__ImagingSettings20*) soap_malloc(soap,
-			sizeof(struct ns3__ImagingSettings20));
-	memset(pImagingSettings20, 0, sizeof(struct ns3__ImagingSettings20));
-	ns12__GetImagingSettingsResponse->ImagingSettings = pImagingSettings20;
-
-    float a = 130;
-	pImagingSettings20->Brightness = &a;//get_json_valude(soap, "Brightness", "ImagingSettings");
-	pImagingSettings20->ColorSaturation = &a;//get_json_valude(soap, "ColorSaturation", "ImagingSettings");
-
-	pImagingSettings20->Contrast = &a;//get_json_valude(soap, "Contrast", "ImagingSettings");
-	pImagingSettings20->Sharpness = &a;//get_json_valude(soap, "Sharpness", "ImagingSettings");
-
-	return SOAP_OK;
+    //聚焦
+    pFocusConfiguration->AutoFocusMode = ns3__AutoFocusMode__MANUAL;
+    #if 0
+    pFocusConfiguration->DefaultSpeed = &a10086;
+    pFocusConfiguration->NearLimit = &a10086;
+    pFocusConfiguration->FarLimit  = &a10086;
+    #endif
+    //ircut filter
+    *pIrCutFilter = ns3__IrCutFilterMode__AUTO;
+    //白平衡
+    pWhiteBalance->Mode = ns3__WhiteBalanceMode__AUTO;
+    //pWhiteBalance->CrGain = &a10086;
+    //pWhiteBalance->CbGain = &a10086;
+    //宽动态幅度
+    pWideDynamicRange->Mode = ns3__WideDynamicMode__ON;
+    pWideDynamicRange->Level= &a10086;//0
+    
+    struct ns3__ImagingSettings20* pImagingSettings20;
+    pImagingSettings20 = (struct ns3__ImagingSettings20*)soap_malloc(soap,sizeof(struct ns3__ImagingSettings20));
+    memset(pImagingSettings20,0,sizeof(struct ns3__ImagingSettings20));
+    pImagingSettings20->BacklightCompensation = pBacklightCompensation;
+    pImagingSettings20->Contrast = &a10086;
+    pImagingSettings20->Sharpness = &a10086;
+    pImagingSettings20->Brightness = &a10086;
+    pImagingSettings20->ColorSaturation = &a10086;
+    pImagingSettings20->Exposure = pExposure;
+    pImagingSettings20->Focus = pFocusConfiguration;
+    pImagingSettings20->IrCutFilter = pIrCutFilter;
+    pImagingSettings20->WhiteBalance = pWhiteBalance;
+    pImagingSettings20->WideDynamicRange = pWideDynamicRange;
+    
+    ns12__GetImagingSettingsResponse->ImagingSettings = pImagingSettings20;
+    return SOAP_OK;
 }
 
 int setfifoimage(unsigned char Fifo_ID, unsigned char imgID, int imgvalue) {
@@ -524,6 +499,65 @@ int setfifoimage(unsigned char Fifo_ID, unsigned char imgID, int imgvalue) {
 	close(fifo_fd);
 }
 
+
+
+void shutterfifo( unsigned char Fifo_ID,unsigned char imgID,char *imagevalue, int nValLen)
+{
+	wta_fifocmd_t imagefifo;
+	imagefifo.Cmdhead=0x01;
+	imagefifo.Cmd_ver=0x01;
+	imagefifo.Cmd_ID=Fifo_ID;
+	imagefifo.Cmd_Para[0]=imgID;
+	memcpy(imagefifo.Cmd_Para + 1, imagevalue, nValLen);
+	imagefifo.Cmd_check=0x00;
+	int real_wnum = 0;
+	int fifo_fd = open(IMAGE_FIFO,O_WRONLY,0);
+	printf("fifo: %d\n", fifo_fd);
+	if(fifo_fd)
+  	{
+    	 real_wnum = write(fifo_fd,&imagefifo,sizeof(wta_fifocmd_t));
+    	 if(real_wnum==-1)
+        	 printf("write to fifo error; try later real_wnum=%d\n",real_wnum);
+    	 else
+        	 printf("real write num is %d\n",real_wnum);
+        	 printf("Cmd_Para[0]:%d\n",imagefifo.Cmd_Para[0]);
+       close(fifo_fd);
+  	}
+}
+
+
+static void set_image_Exposure(struct _ns12__SetImagingSettings *ns12__SetImagingSettings) 
+{
+	char shutterTmp[12] = { 0 };
+
+	setfifoimage(WTA_IMAGE_QULITY_SET, WTA_AE_METER_MODE_SET,
+			(int) ns12__SetImagingSettings->ImagingSettings->Exposure->Mode); //曝光设置
+	if (ns12__SetImagingSettings->ImagingSettings->Exposure->Mode //自动模式设置
+	== ns3__ExposureMode__AUTO) {
+		if (ns12__SetImagingSettings->ImagingSettings->Exposure->Iris != NULL) {
+			setfifoimage(
+					WTA_IMAGE_QULITY_SET,
+					WTA_AE_EV_SET,
+					(int) *ns12__SetImagingSettings->ImagingSettings->Exposure->Iris); //曝光设置
+		}
+
+		if (ns12__SetImagingSettings->ImagingSettings->Exposure->MinExposureTime
+				!= NULL) {
+			int nTmp = 0;
+			nTmp = htonl((int)*ns12__SetImagingSettings->ImagingSettings->Exposure->MinExposureTime);
+			memcpy(shutterTmp, &nTmp, 4);
+			nTmp = htonl((int)*ns12__SetImagingSettings->ImagingSettings->Exposure->MaxExposureTime);
+			memcpy(shutterTmp + 4, &nTmp, 4);
+			nTmp = htonl(1);
+			memcpy(shutterTmp + 8, &nTmp, 4);
+			shutterfifo(WTA_IMAGE_QULITY_SET, WTA_AE_SHUTTER_RANG_SET,
+					shutterTmp, CPCOUNT);
+		}
+
+	} else {
+
+	}
+}
 
 int __ns12__SetImagingSettings(struct soap* soap, struct _ns12__SetImagingSettings *ns12__SetImagingSettings, struct _ns12__SetImagingSettingsResponse *ns12__SetImagingSettingsResponse) 
 {
@@ -590,62 +624,8 @@ int __ns12__SetImagingSettings(struct soap* soap, struct _ns12__SetImagingSettin
 	return SOAP_OK;
 }
 
-void shutterfifo( unsigned char Fifo_ID,unsigned char imgID,char *imagevalue, int nValLen)
-{
-	wta_fifocmd_t imagefifo;
-	imagefifo.Cmdhead=0x01;
-	imagefifo.Cmd_ver=0x01;
-	imagefifo.Cmd_ID=Fifo_ID;
-	imagefifo.Cmd_Para[0]=imgID;
-	memcpy(imagefifo.Cmd_Para + 1, imagevalue, nValLen);
-	imagefifo.Cmd_check=0x00;
-	int real_wnum = 0;
-	int fifo_fd = open(IMAGE_FIFO,O_WRONLY,0);
-	printf("fifo: %d\n", fifo_fd);
-	if(fifo_fd)
-  	{
-    	 real_wnum = write(fifo_fd,&imagefifo,sizeof(wta_fifocmd_t));
-    	 if(real_wnum==-1)
-        	 printf("write to fifo error; try later real_wnum=%d\n",real_wnum);
-    	 else
-        	 printf("real write num is %d\n",real_wnum);
-        	 printf("Cmd_Para[0]:%d\n",imagefifo.Cmd_Para[0]);
-       close(fifo_fd);
-  	}
-}
 
-static void set_image_Exposure(
-		struct _ns12__SetImagingSettings *ns12__SetImagingSettings) {
-	char shutterTmp[12] = { 0 };
 
-	setfifoimage(WTA_IMAGE_QULITY_SET, WTA_AE_METER_MODE_SET,
-			(int) ns12__SetImagingSettings->ImagingSettings->Exposure->Mode); //曝光设置
-	if (ns12__SetImagingSettings->ImagingSettings->Exposure->Mode //自动模式设置
-	== ns3__ExposureMode__AUTO) {
-		if (ns12__SetImagingSettings->ImagingSettings->Exposure->Iris != NULL) {
-			setfifoimage(
-					WTA_IMAGE_QULITY_SET,
-					WTA_AE_EV_SET,
-					(int) *ns12__SetImagingSettings->ImagingSettings->Exposure->Iris); //曝光设置
-		}
-
-		if (ns12__SetImagingSettings->ImagingSettings->Exposure->MinExposureTime
-				!= NULL) {
-			int nTmp = 0;
-			nTmp = htonl((int)*ns12__SetImagingSettings->ImagingSettings->Exposure->MinExposureTime);
-			memcpy(shutterTmp, &nTmp, 4);
-			nTmp = htonl((int)*ns12__SetImagingSettings->ImagingSettings->Exposure->MaxExposureTime);
-			memcpy(shutterTmp + 4, &nTmp, 4);
-			nTmp = htonl(1);
-			memcpy(shutterTmp + 8, &nTmp, 4);
-			shutterfifo(WTA_IMAGE_QULITY_SET, WTA_AE_SHUTTER_RANG_SET,
-					shutterTmp, CPCOUNT);
-		}
-
-	} else {
-
-	}
-}
 
 int __ns12__GetOptions(struct soap* soap, struct _ns12__GetOptions *ns12__GetOptions, struct _ns12__GetOptionsResponse *ns12__GetOptionsResponse)
 {
@@ -864,18 +844,573 @@ int __ns13__GetConfigurations(struct soap* soap, struct _ns13__GetConfigurations
 	return SOAP_OK;
 }
 
-int __ns13__GetPresets(struct soap* soap, struct _ns13__GetPresets *ns13__GetPresets, struct _ns13__GetPresetsResponse *ns13__GetPresetsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+// Load JSON File
+int cJSON_FromFile(const char *pszFile, cJSON **pszJson, char **pszBuf)
+{
+	char *pszData = NULL;
+	FILE *pFile  = NULL;
+	int nFileLen = 0;
+	int nReadLen = 0;
+	
+	pFile = fopen(pszFile, "rb");
+	if (NULL == pFile) {
+		printf("Open file %s failed. Err: %s", pszFile, strerror(errno));
+		return -1;
+	}
+	
+	fseek(pFile, 0, SEEK_END);
+	
+	nFileLen = ftell(pFile);
+	if (-1 == nFileLen) {
+		perror("ftell");
+		return -2;
+	}
+	
+	fseek(pFile, 0, SEEK_SET);
+	
+	pszData = (char *)malloc(nFileLen + 1);
+	if (NULL == pszData) {
+		perror("malloc");
+		return -3;
+	}
+	
+	nReadLen = fread(pszData, 1, nFileLen, pFile);
+	if (nFileLen != nReadLen) {
+		perror("fread");
+		return -4;
+	}
+	
+	*pszBuf = pszData;
+	
+	*pszJson = cJSON_Parse(pszData);
+	if (NULL == *pszJson) {
+		printf("CJSON_Parse failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return -5;
+	}
+	
+	fclose(pFile);
+	
+	return 0;
+}
 
-int  __ns13__SetPreset(struct soap* soap, struct _ns13__SetPreset *ns13__SetPreset, struct _ns13__SetPresetResponse *ns13__SetPresetResponse)
+// Save JSON data to file
+int cJSON_ToFile(const char *pszFile, cJSON *pszJson, char *pszBuf)
+{
+	char *pszData = NULL;
+	FILE *pFile   = NULL;
+	int nWriteLen = 0;
+	
+	//释放FromFile的申请内存空间
+	free(pszBuf);
+	
+	pFile = fopen(pszFile, "rb+");
+	if (NULL == pFile) {
+		printf("Open file %s failed. Err: %s", pszFile, strerror(errno));
+		return -1;
+	}
+	
+	pszData = cJSON_Print(pszJson);
+	if (NULL == pszData) {
+		printf("cJSON_Print failed. Err: %s\n", cJSON_GetErrorPtr());
+		return -2;
+	}
+	
+	cJSON_Delete(pszJson);	
+	printf("%s\n", pszData);	
+	
+	// write to file
+	nWriteLen = fwrite(pszData, strlen(pszData), 1, pFile);
+	if (1 != nWriteLen) {
+		perror("fwrite");
+		return -3;
+	}	
+
+	free(pszData);
+	fclose(pFile);
+	
+	return 0;
+}
+
+int __ns13__GetPresets(struct soap* soap, struct _ns13__GetPresets *ns13__GetPresets, struct _ns13__GetPresetsResponse *ns13__GetPresetsResponse)
 {
 	printf("%s\n",__FUNCTION__);
+	
+	// Check Profile exist
+	
+	// Get Presets
+	cJSON *root    = NULL;
+	cJSON *pJsonPreset = NULL;
+	cJSON *pNode   = NULL;
+	cJSON *pVal    = NULL;
+	char  *pszBuf  = NULL;
+	int   nRet = 0;
+	
+	nRet = cJSON_FromFile(CONFIG_FILE, &root, &pszBuf);
+	if (0 != nRet) {
+		printf("Load Json file failed.\n");
+		return -101;
+	}
+	
+	pJsonPreset = cJSON_GetObjectItem(root,"Preset");
+	if (NULL == pJsonPreset) {
+		printf("Get Preset failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return SOAP_FAULT;
+	} 
+	
+	int nCounts = cJSON_GetArraySize(pJsonPreset);
+	int nIdx = 0;
+    int nArryId = 0;
+	int nFind = 0;
+	
+	printf("Count: %d\n", nCounts);
+	
+	struct ns3__PTZPreset *pszPreset = NULL;
+	
+	pszPreset = (struct ns3__PTZPreset *)soap_malloc(soap, sizeof(struct ns3__PTZPreset) * nCounts);
+	if (NULL == pszPreset) {
+		return SOAP_EOM;
+	}
+	memset(pszPreset, 0, sizeof(struct ns3__PTZPreset) * nCounts);
+	
+	for (nIdx = 0; nIdx < nCounts; nIdx++) {
+		// Json Node
+		pNode = cJSON_GetArrayItem(pJsonPreset, nIdx);
+  	    if (NULL == pNode) {
+  		    printf("Get Node failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+  		    continue;
+  	    }
+  	
+  	    // Check Used
+  	    pVal = cJSON_GetObjectItem(pNode, "Used");
+  	    if (NULL == pVal) {
+  		    continue;
+  	    }
+
+        if (cJSON_False == pVal->type) {
+            continue;
+        }
+
+        // Preset Name
+        pVal = cJSON_GetObjectItem(pNode, "PresetName");
+        if (NULL != pVal) {
+            char *pszName = NULL;
+
+            pszName = (char *)soap_malloc(soap, 64);
+            if (NULL == pszName) {
+                continue;
+            }
+            memset(pszName, 0, 64);
+            snprintf(pszName, 64, pVal->valuestring);
+            pszPreset[nArryId].Name = pszName;
+        }
+  	
+        // Preset Token	  
+        pVal = cJSON_GetObjectItem(pNode, "Token");
+        if (NULL != pVal) {
+            char *pszToken = NULL;
+
+            pszToken = (char *)soap_malloc(soap, 64);
+            if (NULL == pszToken) {
+                continue;
+            }
+            memset(pszToken, 0, 64);
+            snprintf(pszToken, 64, pVal->valuestring);
+            pszPreset[nArryId].token = pszToken;
+        }
+
+        nArryId++;
+	}
+	
+	ns13__GetPresetsResponse->__sizePreset = nArryId;
+	ns13__GetPresetsResponse->Preset = pszPreset;
+	
+	free(pszBuf);
+	
 	return SOAP_OK;
 }
 
- int  __ns13__RemovePreset(struct soap* soap, struct _ns13__RemovePreset *ns13__RemovePreset, struct _ns13__RemovePresetResponse *ns13__RemovePresetResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+// 设置预置点
+// pszName : 预置点名称
+// pszSetToken: 要设置的预置点Token
+// pszGetToken: 设置成功的预置点，如果pszSetToken为空，则查找未使用的预置点，如果不为空，则返回该Token
+// pnPresetId: 预置点编号
+int SetPresetFile(char *pszName, char *pszSetToken, char *pszGetToken, int *pnPresetId)
+{
+	cJSON *root    = NULL;
+	cJSON *pPreset = NULL;
+	cJSON *pNode   = NULL;
+	cJSON *pVal    = NULL;
+	char  *pszBuf  = NULL;
+	int   nRet = 0;
+	
+	nRet = cJSON_FromFile(CONFIG_FILE, &root, &pszBuf);
+	if (0 != nRet) {
+		printf("Load Json file failed.\n");
+		return -101;
+	}
+	
+		pPreset = cJSON_GetObjectItem(root,"Preset");
+	if (NULL == pPreset) {
+		printf("Get Preset failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return SOAP_FAULT;
+	} 
+	
+	int nCounts = cJSON_GetArraySize(pPreset);
+	int nIdx = 0;
+	int nFind = 0;
+	
+	printf("Count: %d\n", nCounts);
+    // Check Name exist
+    if (NULL != pszName) {
+        printf("Check Name exist: %s\n", pszName);
 
- int  __ns13__GotoPreset(struct soap* soap, struct _ns13__GotoPreset *ns13__GotoPreset, struct _ns13__GotoPresetResponse *ns13__GotoPresetResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+        for (nIdx = 0; nIdx < nCounts; nIdx++) {
+            pNode = cJSON_GetArrayItem(pPreset, nIdx);
+            if (NULL == pNode) {
+                printf("Get Node failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+                continue;
+            }
 
+            // Check whether used
+            pVal = cJSON_GetObjectItem(pNode, "Used");
+            if (NULL == pVal) {
+                printf("Get PresetName failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+                continue;
+            }
+
+            if (cJSON_False == pVal->type) {
+                continue;
+            }
+
+            pVal = cJSON_GetObjectItem(pNode, "PresetName");
+            if (NULL == pVal) {
+                printf("Get PresetName failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+                continue;
+            }
+
+            if (0 == strcmp(pszName, pVal->valuestring)) {
+                printf("Preset name exist.\n");
+                return 201;
+            }
+        }
+    }
+	
+	// Check Token exist
+	if (NULL != pszSetToken) {
+		printf("Check Token exist: %s\n", pszSetToken);
+		
+		for (nIdx = 0; nIdx < nCounts; nIdx++) {
+	  	pNode = cJSON_GetArrayItem(pPreset, nIdx);
+	  	if (NULL == pNode) {
+	  		printf("Get Node failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	  		continue;
+	  	}
+		  
+	  	pVal = cJSON_GetObjectItem(pNode, "Token");
+	  	if (NULL == pVal) {
+	  		printf("Get PresetName failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	  		continue;
+	  	}
+	  	
+  	  if (0 == strcmp(pszSetToken, pVal->valuestring)) {
+    		if (NULL != pszName) {
+			  	cJSON_ReplaceItemInObject(pNode, "PresetName", cJSON_CreateString(pszName));
+    		}
+    		
+				cJSON_ReplaceItemInObject(pNode, "Used", cJSON_CreateTrue());
+				
+				pVal = cJSON_GetObjectItem(pNode, "Id");
+		  	if (NULL == pVal) {
+		  		printf("Get Preset ID failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		  		continue;
+		  	}
+				*pnPresetId = pVal->valueint;
+  	  	nFind = 1;
+				
+  	  	break;
+  	  }
+  	  
+		}
+		
+		if (1 != nFind) {
+			printf("Info: No find Token!\n");
+			return 202;
+		}
+		
+		snprintf(pszGetToken, 64, "%s", pszSetToken);
+	}
+	else {
+		printf("Search idle Token ......\n");
+		
+		for (nIdx = 0; nIdx < nCounts; nIdx++) {
+	  	pNode = cJSON_GetArrayItem(pPreset, nIdx);
+	  	if (NULL == pNode) {
+	  		printf("Get Node failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	  		continue;
+	  	}
+		  
+	  	pVal = cJSON_GetObjectItem(pNode, "Used");
+	  	if (NULL == pVal) {
+	  		printf("Get PresetName failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+	  		continue;
+	  	}
+
+  	  if (cJSON_False == pVal->type) {
+  	  	printf("Find idle node: %d\n", nIdx+1);
+  	  	
+  	  	pVal = cJSON_GetObjectItem(pNode, "Token");
+		  	if (NULL == pVal) {
+		  		printf("Get Token failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		  		continue;
+		  	}
+
+  	  	printf("Token: %s\n", pVal->valuestring);
+  	  	snprintf(pszGetToken, 64, "%s", pVal->valuestring);
+  	  	
+  	  	pVal = cJSON_GetObjectItem(pNode, "Id");
+		  	if (NULL == pVal) {
+		  		printf("Get Preset ID failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		  		continue;
+		  	}
+				*pnPresetId = pVal->valueint;
+  	  	
+  	  	if (NULL != pszName) {
+    			cJSON_ReplaceItemInObject(pNode, "PresetName", cJSON_CreateString(pszName));
+    		}
+    		
+    		cJSON_ReplaceItemInObject(pNode, "Used", cJSON_CreateTrue());
+    		
+  	  	nFind = 1;
+
+  	  	break;
+  	  }
+		}
+		
+		if (1 != nFind) {
+			printf("No find idle node.\n");
+			return 203;
+		}	
+	}
+	
+	nRet = cJSON_ToFile(CONFIG_FILE, root, pszBuf);
+	if (0 != nRet) {
+		printf("Save Json file failed.\n");
+		return -102;
+	}
+	
+	return 0;
+}
+int  __ns13__SetPreset(struct soap* soap, struct _ns13__SetPreset *ns13__SetPreset, struct _ns13__SetPresetResponse *ns13__SetPresetResponse)
+{
+	printf("%s\n",__FUNCTION__);
+
+	char *pszToken = NULL;
+	int nPresetId = 0;
+	int nRet = 0;
+	
+	pszToken = (char *)soap_malloc(soap, 64);
+	if (NULL == pszToken) {
+		return SOAP_EOM;
+	}
+	memset(pszToken, 0, 64);
+	
+	// Json
+	nRet = SetPresetFile(ns13__SetPreset->PresetName, ns13__SetPreset->PresetToken, pszToken, &nPresetId);
+	if (0 != nRet) {
+		switch (nRet) {
+			case 201:
+				return soap_sender_fault_subcode(soap, "InvalidArgVal", "PresetExist ", "The requested name already exist for another preset");
+				break;
+				
+			case 202:
+				return soap_sender_fault_subcode(soap, "InvalidArgVal", "NoToken ", "The requested preset token does not exist");
+				break;
+					
+			case 203:
+				return soap_receiver_fault_subcode(soap, "Action", "TooManyPresets ", "Maximum number of Presets reached");
+				break;
+						
+			default:
+				return SOAP_FAULT;
+				break;
+		}
+	}
+	// @ {
+	// Send To Device
+	
+	// Open receive fifo for send
+	int nFifofd = 0;
+	if (0 > SingleFifoinit("/dev/Fifo_WTE", &nFifofd, O_WRONLY)) {
+		printf("Open /dev/Fifo_WTE failed.\n");
+		//return SOAP_OK;
+	}
+	
+	SendCmdToDevice(nFifofd, 0x03, 0x0F, nPresetId);
+	
+	close(nFifofd);
+	// @ }
+	
+	ns13__SetPresetResponse->PresetToken = pszToken;
+	
+	return SOAP_OK;
+}
+
+int  __ns13__RemovePreset(struct soap* soap, struct _ns13__RemovePreset *ns13__RemovePreset, struct _ns13__RemovePresetResponse *ns13__RemovePresetResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	// Check Profile Token
+	/*if (0 != strcmp("1", ns13__RemovePreset->ProfileToken)) {
+		return soap_sender_fault_subcode(soap, "InvalidArgVal", "NoProfile ", "The requested profile token ProfileToken does not exist");
+	}*/
+	
+	// Check Preset Token
+	// Get Presets
+	cJSON *root    = NULL;
+	cJSON *pJsonPreset = NULL;
+	cJSON *pNode   = NULL;
+	cJSON *pVal    = NULL;
+	char  *pszBuf  = NULL;
+	int   nRet = 0;
+	
+	nRet = cJSON_FromFile(CONFIG_FILE, &root, &pszBuf);
+	if (0 != nRet) {
+		printf("Load Json file failed.\n");
+		return -101;
+	}
+	
+	pJsonPreset = cJSON_GetObjectItem(root,"Preset");
+	if (NULL == pJsonPreset) {
+		printf("Get Preset failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return SOAP_FAULT;
+	} 
+	
+	int nCounts = cJSON_GetArraySize(pJsonPreset);
+	int nIdx = 0;
+	int nFind = 0;
+	int nPresetId = 0;
+	
+	printf("Count: %d\n", nCounts);
+	
+	for (nIdx = 0; nIdx < nCounts; nIdx++) {
+		// Jsoan Node
+		pNode = cJSON_GetArrayItem(pJsonPreset, nIdx);
+  	if (NULL == pNode) {
+  		printf("Get Node failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+  		continue;
+  	}
+	  
+	  // Token
+  	pVal = cJSON_GetObjectItem(pNode, "Token");
+  	if (NULL == pVal) {
+  		continue;
+  	}
+  	
+  	if (0 == strcmp(ns13__RemovePreset->PresetToken, pVal->valuestring)) {
+  		cJSON_ReplaceItemInObject(pNode, "Token", cJSON_CreateString(""));
+  		cJSON_ReplaceItemInObject(pNode, "PresetName", cJSON_CreateString(""));
+  		cJSON_ReplaceItemInObject(pNode, "Used", cJSON_CreateFalse());
+  		nFind = 1;
+  	}
+	}
+	
+	if (1 != nFind) {
+		printf("No find preset. token: %s\n", ns13__RemovePreset->PresetToken);
+		return soap_sender_fault_subcode(soap, "InvalidArgVal", "NoToken ", "The requested preset token does not exist");
+	}
+	
+	nRet = cJSON_ToFile(CONFIG_FILE, root, pszBuf);
+	if (0 != nRet) {
+		printf("Save Json file failed.\n");
+		return -102;
+	}
+	
+	return SOAP_OK;
+}
+
+int  __ns13__GotoPreset(struct soap* soap, struct _ns13__GotoPreset *ns13__GotoPreset, struct _ns13__GotoPresetResponse *ns13__GotoPresetResponse)
+{
+	printf("%s\n",__FUNCTION__);
+	
+	// Check Profile Token
+	/*if (0 != strcmp("1", ns13__GotoPreset->ProfileToken)) {
+		return soap_sender_fault_subcode(soap, "InvalidArgVal", "NoProfile ", "The requested profile token ProfileToken does not exist");
+	}*/
+	
+	// Check Preset Token
+		// Get Presets
+	cJSON *root    = NULL;
+	cJSON *pJsonPreset = NULL;
+	cJSON *pNode   = NULL;
+	cJSON *pVal    = NULL;
+	char  *pszBuf  = NULL;
+	int   nRet = 0;
+	
+	nRet = cJSON_FromFile(CONFIG_FILE, &root, &pszBuf);
+	if (0 != nRet) {
+		printf("Load Json file failed.\n");
+		return -101;
+	}
+	
+	pJsonPreset = cJSON_GetObjectItem(root,"Preset");
+	if (NULL == pJsonPreset) {
+		printf("Get Preset failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return SOAP_FAULT;
+	} 
+	
+	int nCounts = cJSON_GetArraySize(pJsonPreset);
+	int nIdx = 0;
+	int nFind = 0;
+	int nPresetId = 0;
+	
+	printf("Count: %d\n", nCounts);
+	
+	for (nIdx = 0; nIdx < nCounts; nIdx++) {
+		// Jsoan Node
+		pNode = cJSON_GetArrayItem(pJsonPreset, nIdx);
+  	if (NULL == pNode) {
+  		printf("Get Node failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+  		continue;
+  	}
+	  
+	  // Token
+  	pVal = cJSON_GetObjectItem(pNode, "Token");
+  	if (NULL == pVal) {
+  		continue;
+  	}
+  	
+  	if (0 == strcmp(ns13__GotoPreset->PresetToken, pVal->valuestring)) {
+  		pVal = cJSON_GetObjectItem(pNode, "Id");
+	  	if (NULL == pVal) {
+	  		continue;
+	  	}
+	  	
+	  	nPresetId = pVal->valueint;
+  		nFind = 1;
+  	}
+	}
+	
+	if (1 != nFind) {
+		printf("No find preset. token: %s\n", ns13__GotoPreset->PresetToken);
+		return soap_sender_fault_subcode(soap, "InvalidArgVal", "NoToken", "The requested preset token does not exist");
+	}
+	
+	// @ {
+	// Send To Device
+	
+	// Open receive fifo for send
+	int nFifofd = 0;
+	if (0 > SingleFifoinit("/dev/Fifo_WTE", &nFifofd, O_WRONLY)) {
+		printf("Open /dev/Fifo_WTE failed.\n");
+		//return SOAP_OK;
+	}
+	
+	SendCmdToDevice(nFifofd, 0x03, 0x10, nPresetId);
+	
+	close(nFifofd);
+	// @ }
+	
+	return SOAP_OK;
+}
 
 int  __ns13__GetStatus(struct soap* soap, struct _ns13__GetStatus *ns13__GetStatus, struct _ns13__GetStatusResponse *ns13__GetStatusResponse)
 {
@@ -1241,7 +1776,7 @@ int  __ns13__GetConfigurationOptions(struct soap* soap, struct _ns13__GetConfigu
  		return SOAP_EOM;
  	}
  	memset(pszMin, 0, 10);
- 	snprintf(pszMin, 10, "PT5S");
+ 	snprintf(pszMin, 10, "PT1S");
  	pszDurRange->Min = pszMin;
  	
  	char *pszMax = NULL;
@@ -1250,7 +1785,7 @@ int  __ns13__GetConfigurationOptions(struct soap* soap, struct _ns13__GetConfigu
  		return SOAP_EOM;
  	}
  	memset(pszMax, 0, 10);
- 	snprintf(pszMax, 10, "PT30S");
+ 	snprintf(pszMax, 10, "PT5S");
  	pszDurRange->Max = pszMax;
  	// @ }
  	
@@ -1267,28 +1802,6 @@ int  __ns13__GetConfigurationOptions(struct soap* soap, struct _ns13__GetConfigu
  int  __ns13__GotoHomePosition(struct soap* soap, struct _ns13__GotoHomePosition *ns13__GotoHomePosition, struct _ns13__GotoHomePositionResponse *ns13__GotoHomePositionResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
  int  __ns13__SetHomePosition(struct soap* soap, struct _ns13__SetHomePosition *ns13__SetHomePosition, struct _ns13__SetHomePositionResponse *ns13__SetHomePositionResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
-
-int SendCmdToDevice(int nfd, int nCMD, int nType, int nValue)
-{
-		ONVIF_FIFO_Comand_t szPTZCmd;
-		int nSendLen = 0;
-
-		memset(&szPTZCmd, 0, sizeof(ONVIF_FIFO_Comand_t));
-		
-		szPTZCmd.Cmdhead = 0x0A;
-		szPTZCmd.Cmd_ver = 0x01;
-		szPTZCmd.Cmd_ID  = nCMD;
-	  szPTZCmd.Cmd_Para[0] = nType;
-		szPTZCmd.Cmd_Para[1] = nValue;
-		
-		nSendLen = write(nfd, &szPTZCmd, sizeof(szPTZCmd));
-    if (0 > nSendLen) {
-        perror("Send Command To IPC_Q313");
-        return -1;
-    }
-    
-    return 0;
-}
 
 int  __ns13__ContinuousMove(struct soap* soap, struct _ns13__ContinuousMove *ns13__ContinuousMove, struct _ns13__ContinuousMoveResponse *ns13__ContinuousMoveResponse)
 {
@@ -1312,37 +1825,16 @@ int  __ns13__ContinuousMove(struct soap* soap, struct _ns13__ContinuousMove *ns1
 	float fY = 0.0;
 	float fZ = 0.0;
 	int nTimeOut = 0;
+	int nValue = 0;
 	
 	if (NULL != ns13__ContinuousMove->Velocity->PanTilt) {
 		fX = ns13__ContinuousMove->Velocity->PanTilt->x;
 		fY = ns13__ContinuousMove->Velocity->PanTilt->y;
 	
-	  // Send X Move
-		if (0.0 < fX) {
-			SendCmdToDevice(nFifofd, 0x03, 0x01, fX);
-	  }
-	  else {
-	  	SendCmdToDevice(nFifofd, 0x03, 0x02, fX);
-	  }
-		
-		// Send Y Move
-		if (0.0 < fY) {
-			SendCmdToDevice(nFifofd, 0x03, 0x03, fY);
-	  }
-	  else {
-	  	SendCmdToDevice(nFifofd, 0x03, 0x04, fY);
-	  }
 	}
 	
 	if (NULL != ns13__ContinuousMove->Velocity->Zoom) {
 		fZ = ns13__ContinuousMove->Velocity->Zoom->x;
-		
-		if (0.0 < fZ) {
-			SendCmdToDevice(nFifofd, 0x03, 0x05, fZ);
-	  }
-	  else {
-	  	SendCmdToDevice(nFifofd, 0x03, 0x06, fZ);
-	  }
 	}
 	
 	if (NULL != ns13__ContinuousMove->Timeout) {
@@ -1356,7 +1848,92 @@ int  __ns13__ContinuousMove(struct soap* soap, struct _ns13__ContinuousMove *ns1
 		nTimeOut = atoi(pszTmp);
 	}
 	
+		
+	if (0.0 == fX && 0.0 == fY) {
+		if (0.0 == fZ) {
+			SendCmdToDevice(nFifofd, 0x03, 0x01, 0);
+			SendCmdToDevice(nFifofd, 0x03, 0x02, 0);
+			SendCmdToDevice(nFifofd, 0x03, 0x03, 0);
+			SendCmdToDevice(nFifofd, 0x03, 0x04, 0);
+			SendCmdToDevice(nFifofd, 0x03, 0x09, 0);
+			SendCmdToDevice(nFifofd, 0x03, 0x0A, 0);
+		}
+	}
+	else if (0.0 != fX && 0.0 != fY) {
+		char szTmp[3] = {0};
+		
+		// left Up
+		if (0.0 > fX && 0.0 < fY) {
+			szTmp[0] = (-fX) * 64;
+			szTmp[1] = fY * 64;
+			SendCmdToDevicebyChar(nFifofd, 0x03, 0x05, szTmp, 2);
+		}
+		// left down
+		else if (0.0 > fX && 0.0 > fY) {
+			szTmp[0] = (-fX) * 64;
+			szTmp[1] = (-fY) * 64;
+			SendCmdToDevicebyChar(nFifofd, 0x03, 0x06, szTmp, 2);				
+		}
+		// right up
+		else if (0.0 < fX && 0.0 < fY) {
+			szTmp[0] = fX * 64;
+			szTmp[1] = fY * 64;
+			SendCmdToDevicebyChar(nFifofd, 0x03, 0x07, szTmp, 2);	
+		}
+		// right down
+		else if (0.0 < fX && 0.0 > fY) {
+			szTmp[0] = fX * 64;
+			szTmp[1] = (-fY) * 64;
+			SendCmdToDevicebyChar(nFifofd, 0x03, 0x08, szTmp, 2);	
+		}
+	}
+	else {
+		// Send X Move
+		// right
+		if (0.0 < fX) {
+			nValue = fX * 64;
+			nValue = (nValue == 0) ? 1 : nValue; 
+			SendCmdToDevice(nFifofd, 0x03, 0x04, nValue);
+	  }
+	  // left
+	  else if (0.0 > fX) {
+	  	nValue = (-fX) * 64;
+	  	nValue = (nValue == 0) ? 1 : nValue; 
+	  	SendCmdToDevice(nFifofd, 0x03, 0x03, nValue);
+	  }
+	  
+		// Send Y Move
+		// up
+		if (0.0 < fY) {
+			nValue = fY * 64;
+			nValue = (nValue == 0) ? 1 : nValue; 
+			SendCmdToDevice(nFifofd, 0x03, 0x01, nValue);
+	  }
+	  // down
+	  else if (0.0 > fY) {
+	  	nValue = (-fY) * 64;
+	  	nValue = (nValue == 0) ? 1 : nValue; 
+	  	SendCmdToDevice(nFifofd, 0x03, 0x02, nValue);
+	  }
+	}
+  
+  if (0.0 != fZ) {
+		// Send Z Move
+		if (0.0 < fZ) {
+			nValue = fZ * 7;
+			nValue = (nValue == 0) ? 1 : nValue; 
+			SendCmdToDevice(nFifofd, 0x03, 0x09, nValue);
+	  }
+	  else {
+	  	nValue = (-fZ) * 7;
+	  	nValue = (nValue == 0) ? 1 : nValue; 
+	  	SendCmdToDevice(nFifofd, 0x03, 0x0A, nValue);
+	  }
+  }
+	
 	printf("X: %f\n Y: %f\n Z: %f\n, Timeout: %d\n", fX, fY, fZ, nTimeOut);
+	
+	close(nFifofd);
 	
 	return SOAP_OK;
 }
@@ -1378,6 +1955,13 @@ int  __ns13__Stop(struct soap* soap, struct _ns13__Stop *ns13__Stop, struct _ns1
 		return soap_sender_fault_subcode(soap, "InvalidArgVal", "NoProfile", NULL);
 	}
 	
+	// Open receive fifo for send
+	int nFifofd = 0;
+	if (0 > SingleFifoinit("/dev/Fifo_WTE", &nFifofd, O_WRONLY)) {
+		printf("Open /dev/Fifo_WTE failed.\n");
+		return SOAP_OK;
+	}
+	
 	int nXStop = 0;
 	int nYStop = 0;
 	int nZStop = 0;
@@ -1386,14 +1970,33 @@ int  __ns13__Stop(struct soap* soap, struct _ns13__Stop *ns13__Stop, struct _ns1
 		  xsd__boolean__true_ == *(ns13__Stop->PanTilt)) {
 		nXStop = 1;
 		nYStop = 1;
+		SendCmdToDevice(nFifofd, 0x03, 0x01, 0);
+		SendCmdToDevice(nFifofd, 0x03, 0x02, 0);
+		SendCmdToDevice(nFifofd, 0x03, 0x03, 0);
+		SendCmdToDevice(nFifofd, 0x03, 0x04, 0);
 	}
 	
 	if (NULL != ns13__Stop->Zoom &&
 		  xsd__boolean__true_ == *(ns13__Stop->Zoom)) {
 		nZStop = 1;
+		SendCmdToDevice(nFifofd, 0x03, 0x09, 0);
+		SendCmdToDevice(nFifofd, 0x03, 0x0A, 0);
+	}
+	
+	if (0 == nXStop &&
+		  0 == nYStop &&
+		  0 == nZStop) {
+		SendCmdToDevice(nFifofd, 0x03, 0x01, 0);
+		SendCmdToDevice(nFifofd, 0x03, 0x02, 0);
+		SendCmdToDevice(nFifofd, 0x03, 0x03, 0);
+		SendCmdToDevice(nFifofd, 0x03, 0x04, 0);
+		SendCmdToDevice(nFifofd, 0x03, 0x09, 0);
+		SendCmdToDevice(nFifofd, 0x03, 0x0A, 0);
 	}
 	
 	printf("XStop: %d\n YStop: %d\n ZStop: %d\n", nXStop, nYStop, nZStop);
+	
+	close(nFifofd);
 	
 	return SOAP_OK;
 }
@@ -1597,7 +2200,7 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
     	return SOAP_EOM;
     }
     memset(pszDefaultPTZTimeout, 0, 32*sizeof(char));
-    snprintf(pszDefaultPTZTimeout, 32, "10");
+    snprintf(pszDefaultPTZTimeout, 32, "PT2S");
    	pszPTZConf->DefaultPTZTimeout = pszDefaultPTZTimeout;
    	// @ }
     
