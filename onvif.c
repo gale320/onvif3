@@ -13,8 +13,10 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
+#include "sqlite3.h"
 
 #define CONFIG_FILE			"/etc/ambaipcam/IPC_Q313/config/onvif.json"
+#define CONFIG_DB           "/etc/ambaipcam/IPC_Q313/config/config.db"
 
 typedef struct ONVIF_FIFO_Comand_s 
 {
@@ -1743,11 +1745,36 @@ int get_source_porfile(struct soap* soap, const int nId, struct ns3__Profile *pP
 }
 
 
+static int sqlite()
+{
+	 sqlite3 *db;
+    char *zErrMsg = 0;
+    int rc;
+
+    rc = sqlite3_open(CONFIG_DB, &db);
+    if( rc ){
+        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return(1);
+    }
+
+    int nrow = 0, ncolumn = 0;
+    char **azResult; //二维数组存放结果
+
+    char *sql = "SELECT * FROM test ";
+    sqlite3_get_table( db , sql , &azResult , &nrow , &ncolumn , &zErrMsg );
+    int i = 0 ;
+    printf( "row:%d column=%d \n" , nrow , ncolumn );
+
+    sqlite3_close(db);
+	return 0;
+}
 
 
 int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProfiles, struct _ns2__GetProfilesResponse *ns2__GetProfilesResponse)
 {
   printf("%s\n",__FUNCTION__);
+  sqlite();
   
   //open conf.json files
   	cJSON *root    = NULL;
@@ -1778,6 +1805,7 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 	
 	ns2__GetProfilesResponse->__sizeProfiles = nCounts;
     ns2__GetProfilesResponse->Profiles = pProfile;
+	
 	
 	int i = 0;
     for(i = 0; i < nCounts; i++)
