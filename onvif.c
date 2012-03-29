@@ -14,6 +14,8 @@
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
 
+#define CONFIG_FILE			"/etc/ambaipcam/IPC_Q313/config/onvif.json"
+
 typedef struct ONVIF_FIFO_Comand_s 
 {
 	unsigned char Cmdhead;
@@ -217,7 +219,7 @@ int cJSON_FromFile(const char *pszFile, cJSON **pszJson, char **pszBuf)
 	int nFileLen = 0;
 	int nReadLen = 0;
 
-	pFile = fopen("./onvif.json", "rb");
+	pFile = fopen(pszFile, "rb");
 	if (NULL == pFile) {
 		printf("Open file %s failed. Err: %s", pszFile, strerror(errno));
 		return -1;
@@ -1441,7 +1443,41 @@ int  __ns2__GetAudioSources(struct soap* soap, struct _ns2__GetAudioSources *ns2
 
  int  __ns2__GetAudioOutputs(struct soap* soap, struct _ns2__GetAudioOutputs *ns2__GetAudioOutputs, struct _ns2__GetAudioOutputsResponse *ns2__GetAudioOutputsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
- int  __ns2__CreateProfile(struct soap* soap, struct _ns2__CreateProfile *ns2__CreateProfile, struct _ns2__CreateProfileResponse *ns2__CreateProfileResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+
+struct Node{
+	cJSON *node;
+	char *pszBuf;
+};
+
+struct Node *get_media_json_node(struct soap* soap)
+{
+	  	cJSON *root    = NULL;
+		struct Node *node = (struct Node*)soap_malloc(soap,sizeof(struct Node));
+		
+	int   nRet = 0;
+	
+	nRet = cJSON_FromFile(CONFIG_FILE, &root, &(node->pszBuf));
+	if (0 != nRet) {
+		printf("Load Json file failed.\n");
+		return NULL;
+	}
+	
+	node->node = cJSON_GetObjectItem(root,"Media");
+
+	return node;
+}
+
+ int  __ns2__CreateProfile(struct soap* soap, struct _ns2__CreateProfile *ns2__CreateProfile, struct _ns2__CreateProfileResponse *ns2__CreateProfileResponse){
+	 printf("%s\n",__FUNCTION__);
+	   //open conf.json files
+/*
+	struct Node *pnode = get_media_json_node(soap);
+	
+	cJSON_AddStringToObject(pnode->node,"type", "rect");
+	 
+	cJSON_ToFile(CONFIG_FILE, pnode->node, pnode->pszBuf);*/
+	 return SOAP_OK;
+}
 
 int __ns2__GetProfile(struct soap* soap, struct _ns2__GetProfile *ns2__GetProfile, struct _ns2__GetProfileResponse *ns2__GetProfileResponse)
 {
@@ -1456,82 +1492,164 @@ int __ns2__GetProfile(struct soap* soap, struct _ns2__GetProfile *ns2__GetProfil
     return SOAP_OK;
 }
 
+static const char *get_from_json(struct soap* soap, const char *name, cJSON *pNode)
+{
+	cJSON *pVal = cJSON_GetObjectItem(pNode, name);
+    int lens = strlen(pVal->valuestring);
+    char *val = (char *)soap_malloc(soap, lens + 1);
+	memset(val, 0, lens + 1);
+	strcpy(val, pVal->valuestring);
+    //snprintf(val, lens , pVal->valuestring);
+	return val;
+}
+
+
 char *pszIP[] = {"0.0.0.0"};
 
-int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProfiles, struct _ns2__GetProfilesResponse *ns2__GetProfilesResponse)
+
+int get_source_porfile(struct soap* soap, const int nId, struct ns3__Profile *pProfile, cJSON *pNode)
 {
-  printf("%s\n",__FUNCTION__);
-  
-  // Video Source Config
+	
+	 // Video Source Config
+	cJSON *video_sourc_json = cJSON_GetObjectItem(pNode, "VideoSource");
+	cJSON *bounds_json = cJSON_GetObjectItem(video_sourc_json, "Bounds");
   struct ns3__IntRectangle *pBounds;
 	pBounds = (struct ns3__IntRectangle *)soap_malloc(soap,sizeof(struct ns3__IntRectangle));
 	memset(pBounds, 0, sizeof(struct ns3__IntRectangle));
-	pBounds->x = 0;
-	pBounds->y = 0;
-	pBounds->width =  1920;
-	pBounds->height = 1080;
-  
+	pBounds->x = atoi((char *)get_from_json(soap, "x", bounds_json));
+	pBounds->y = atoi((char *)get_from_json(soap, "y", bounds_json));
+	pBounds->width =  atoi((char *)get_from_json(soap, "width", bounds_json));
+	pBounds->height = atoi((char *)get_from_json(soap, "height", bounds_json));
+
   struct ns3__VideoSourceConfiguration *pVideoSourcesConfig;
 	pVideoSourcesConfig = (struct ns3__VideoSourceConfiguration *)soap_malloc(soap,sizeof(struct ns3__VideoSourceConfiguration));
 	memset(pVideoSourcesConfig, 0, sizeof(struct ns3__VideoSourceConfiguration));
-	pVideoSourcesConfig->Name = "stream1";
-	pVideoSourcesConfig->UseCount = 0;
-	pVideoSourcesConfig->token = "1";
-	pVideoSourcesConfig->SourceToken = "1";
+	
+	pVideoSourcesConfig->Name = (char *)get_from_json(soap, "Name", video_sourc_json);
+	pVideoSourcesConfig->UseCount = atoi((char *)get_from_json(soap, "height", bounds_json));
+	pVideoSourcesConfig->token = (char *)get_from_json(soap, "Token", video_sourc_json);
+	pVideoSourcesConfig->SourceToken = (char *)get_from_json(soap, "SourceToken", video_sourc_json);
   pVideoSourcesConfig->Bounds = pBounds;
-
-    
-  // Video Encoder Configuration
+  
+  
+    // Video Encoder Configuration
+	cJSON *video_encode_json = cJSON_GetObjectItem(pNode, "VideoEncode");
+	cJSON *resolute_json = cJSON_GetObjectItem(video_encode_json, "resolute");
   struct ns3__VideoResolution *pVideoResolution;
 	pVideoResolution = (struct ns3__VideoResolution *)soap_malloc(soap,sizeof(struct ns3__VideoResolution));
-	pVideoResolution->Width = 1920;
-	pVideoResolution->Height = 1080;
+	pVideoResolution->Width = atoi((char *)get_from_json(soap, "width", resolute_json));
+	pVideoResolution->Height = atoi((char *)get_from_json(soap, "height", resolute_json));
 	
 	struct ns3__VideoEncoderConfiguration *pVideoEncoderConfig;
 	pVideoEncoderConfig = (struct ns3__VideoEncoderConfiguration *)soap_malloc(soap,sizeof(struct ns3__VideoEncoderConfiguration));
 	memset(pVideoEncoderConfig, 0, sizeof(struct ns3__VideoEncoderConfiguration));
-	pVideoEncoderConfig->Name = "H.264";
-	pVideoEncoderConfig->UseCount = 0;
-	pVideoEncoderConfig->token = "1";
-	pVideoEncoderConfig->Encoding = ns3__VideoEncoding__H264;
+	pVideoEncoderConfig->Name = (char *)get_from_json(soap, "Name", video_encode_json);
+	pVideoEncoderConfig->UseCount = atoi((char *)get_from_json(soap, "UseCount", video_encode_json));
+	pVideoEncoderConfig->token = (char *)get_from_json(soap, "Token", video_encode_json);
+	
+	int EncodeType = atoi((char *)get_from_json(soap, "Encoding", video_encode_json)); 
+	switch(EncodeType){
+		case 0: 
+		   pVideoEncoderConfig->Encoding = ns3__VideoEncoding__JPEG;
+		   break;
+		case 1:
+		   pVideoEncoderConfig->Encoding = ns3__VideoEncoding__MPEG4;
+		   break;
+		case 2:
+		   pVideoEncoderConfig->Encoding = ns3__VideoEncoding__H264;
+		   break;
+	}
+	
   pVideoEncoderConfig->Resolution = pVideoResolution;
-  pVideoEncoderConfig->Quality = 50.000000;
+  pVideoEncoderConfig->Quality = atof((char *)get_from_json(soap, "Quality", video_encode_json));
 
+//
+  cJSON *rate_json = cJSON_GetObjectItem(video_encode_json, "RateControl");
   struct ns3__VideoRateControl *pVideoRateCtrl;
   pVideoRateCtrl= (struct ns3__VideoRateControl *)soap_malloc(soap,sizeof(struct ns3__VideoRateControl));
   memset(pVideoRateCtrl,0,sizeof(struct ns3__VideoRateControl));
-  pVideoRateCtrl->FrameRateLimit = 30;
-	pVideoRateCtrl->EncodingInterval=1;
-	pVideoRateCtrl->BitrateLimit = 2000;
+  pVideoRateCtrl->FrameRateLimit = atoi((char *)get_from_json(soap, "FrameRateLimit", rate_json));
+	pVideoRateCtrl->EncodingInterval= atoi((char *)get_from_json(soap, "EncodingInterval", rate_json));
+	pVideoRateCtrl->BitrateLimit = atoi((char *)get_from_json(soap, "BitrateLimit", rate_json));
   pVideoEncoderConfig->RateControl = pVideoRateCtrl;
 
-  struct ns3__H264Configuration *pH264Config;
-  pH264Config = (struct ns3__H264Configuration *)soap_malloc(soap,sizeof(struct ns3__H264Configuration));
-  memset(pH264Config,0,sizeof(struct ns3__H264Configuration));
-  pH264Config->GovLength = 0;
-  pH264Config->H264Profile = ns3__H264Profile__Main;
-  pVideoEncoderConfig->H264 = pH264Config;
 
-  struct ns3__MulticastConfiguration *pMulticastConfig;
-  pMulticastConfig = (struct ns3__MulticastConfiguration *)soap_malloc(soap,sizeof(struct ns3__MulticastConfiguration));
-  memset(pMulticastConfig,0,sizeof(struct ns3__MulticastConfiguration));
+  //configuration
+  
+  switch(EncodeType){
+		case 0: 
+		   pVideoEncoderConfig->Encoding = ns3__VideoEncoding__JPEG;
+		   break;
+		case 1:
+		   pVideoEncoderConfig->Encoding = ns3__VideoEncoding__MPEG4;
+		   break;
+		case 2:
+		    cJSON *h264 = cJSON_GetObjectItem(video_encode_json, "H264");
+		    struct ns3__H264Configuration *pH264Config;
+			pH264Config = (struct ns3__H264Configuration *)soap_malloc(soap,sizeof(struct ns3__H264Configuration));
+            memset(pH264Config,0,sizeof(struct ns3__H264Configuration));
+            pH264Config->GovLength = atoi((char *)get_from_json(soap, "GovLength", h264));
+			switch(atoi((char *)get_from_json(soap, "H264Profile", h264))){
+				case 0:
+				    pH264Config->H264Profile = ns3__H264Profile__Baseline;
+					break;
+				case 1:
+				    pH264Config->H264Profile = ns3__H264Profile__Main;
+					break;
+				case 2:
+				    pH264Config->H264Profile = ns3__H264Profile__Extended;					
+					break;
+				case 3:
+				    pH264Config->H264Profile = ns3__H264Profile__High;
+					break;
+			}
+            
+            pVideoEncoderConfig->H264 = pH264Config;
+			break;
+	}
+ 
+  
+    cJSON *multicast_config = cJSON_GetObjectItem(video_encode_json, "MulticastConfig");
+    struct ns3__MulticastConfiguration *pMulticastConfig;
+    pMulticastConfig = (struct ns3__MulticastConfiguration *)soap_malloc(soap,sizeof(struct ns3__MulticastConfiguration));
+    memset(pMulticastConfig,0,sizeof(struct ns3__MulticastConfiguration));
 
 	//char *pszIP = (char *)soap_malloc(soap, 128);
 	//memset(pszIP, 0, 128);
 	//strcpy(pszIP, "0.0.0.0");
     
+	cJSON *addr_json = cJSON_GetObjectItem(multicast_config, "addr");
     struct ns3__IPAddress *pxAddr;
     pxAddr = (struct ns3__IPAddress *)soap_malloc(soap,sizeof(struct ns3__IPAddress));
     memset(pxAddr,0,sizeof(struct ns3__IPAddress));
-    pxAddr->Type = ns3__IPType__IPv4;
-    pxAddr->IPv4Address = pszIP;
+	switch(atoi((char *)get_from_json(soap, "Type", addr_json))){
+		case 0:
+		    pxAddr->Type = ns3__IPType__IPv4;
+			break;
+		case 1:
+		    pxAddr->Type = ns3__IPType__IPv6;
+			break;
+	}
+	
+	static char *ipv4_address = (char *)get_from_json(soap, "IPv4Address", addr_json);
+    pxAddr->IPv4Address = &ipv4_address;
+	
     pMulticastConfig->Address  = pxAddr;
-    pMulticastConfig->Port = 0;
-    pMulticastConfig->TTL = 64;
-    pMulticastConfig->AutoStart = xsd__boolean__false_;
+	
+    pMulticastConfig->Port = atoi((char *)get_from_json(soap, "Port", multicast_config));
+    pMulticastConfig->TTL = atoi((char *)get_from_json(soap, "TTL", multicast_config));
+	switch(atoi((char *)get_from_json(soap, "TTL", multicast_config))){
+		case 0:
+		    pMulticastConfig->AutoStart = xsd__boolean__false_;
+			break;
+	    case 1:
+		    pMulticastConfig->AutoStart = xsd__boolean__true_;
+			break;
+	}
     
     pVideoEncoderConfig->Multicast = pMulticastConfig;
-    pVideoEncoderConfig->SessionTimeout = "PT60S";
+	
+    pVideoEncoderConfig->SessionTimeout = (char *)get_from_json(soap, "SessionTimeout", video_encode_json);
     
     // @ {
     // PTZ config
@@ -1612,26 +1730,71 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
     snprintf(pszDefaultPTZTimeout, 32, "10");
    	pszPTZConf->DefaultPTZTimeout = pszDefaultPTZTimeout;
    	// @ }
-    
-    //Target Profile
-    struct ns3__Profile *pProfile;
-    pProfile = (struct ns3__Profile *)soap_malloc(soap,sizeof(struct ns3__Profile));
-    memset(pProfile,0,sizeof(struct ns3__Profile));
-    pProfile->Name = "Profile 0";
-    pProfile->token= "1";
+  
+
+   // pProfile->Name = val;
+	pProfile->Name = (char *)get_from_json(soap, "Name", pNode);
+    pProfile->token= (char *)get_from_json(soap, "Token", pNode);;
     pProfile->VideoSourceConfiguration = pVideoSourcesConfig;
     pProfile->VideoEncoderConfiguration= pVideoEncoderConfig;
     pProfile->PTZConfiguration = pszPTZConf;
 	xsd__boolean fixed = xsd__boolean__false_;
 	pProfile->fixed = &fixed;
+}
 
-    ns2__GetProfilesResponse->__sizeProfiles = 1;
+
+
+
+int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProfiles, struct _ns2__GetProfilesResponse *ns2__GetProfilesResponse)
+{
+  printf("%s\n",__FUNCTION__);
+  
+  //open conf.json files
+  	cJSON *root    = NULL;
+	cJSON *pJsonMedia = NULL;
+	cJSON *pNode   = NULL;
+	
+	char  *pszBuf  = NULL;
+	int   nRet = 0;
+	
+	nRet = cJSON_FromFile(CONFIG_FILE, &root, &pszBuf);
+	if (0 != nRet) {
+		printf("Load Json file failed.\n");
+		return -101;
+	}
+	
+	pJsonMedia = cJSON_GetObjectItem(root,"Media");
+	if (NULL == pJsonMedia) {
+		printf("Get Preset failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
+		return SOAP_FAULT;
+	} 
+  
+
+	int nCounts = cJSON_GetArraySize(pJsonMedia);
+
+    struct ns3__Profile *pProfile = NULL;	
+    pProfile = (struct ns3__Profile *)soap_malloc(soap,sizeof(struct ns3__Profile)*nCounts);
+	memset(pProfile,0,sizeof(struct ns3__Profile)*nCounts);
+	
+	ns2__GetProfilesResponse->__sizeProfiles = nCounts;
     ns2__GetProfilesResponse->Profiles = pProfile;
-    
+	
+	int i = 0;
+    for(i = 0; i < nCounts; i++)
+	{
+		pNode = cJSON_GetArrayItem(pJsonMedia, i);
+		get_source_porfile(soap, i, &pProfile[i], pNode);
+	}
+
+	
     return SOAP_OK;
 }
 
- int  __ns2__AddVideoEncoderConfiguration(struct soap* soap, struct _ns2__AddVideoEncoderConfiguration *ns2__AddVideoEncoderConfiguration, struct _ns2__AddVideoEncoderConfigurationResponse *ns2__AddVideoEncoderConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
+ int  __ns2__AddVideoEncoderConfiguration(struct soap* soap, struct _ns2__AddVideoEncoderConfiguration *ns2__AddVideoEncoderConfiguration, struct _ns2__AddVideoEncoderConfigurationResponse *ns2__AddVideoEncoderConfigurationResponse){
+	 printf("%s\n",__FUNCTION__);
+	 
+	 return SOAP_OK;
+}
 
  int  __ns2__AddVideoSourceConfiguration(struct soap* soap, struct _ns2__AddVideoSourceConfiguration *ns2__AddVideoSourceConfiguration, struct _ns2__AddVideoSourceConfigurationResponse *ns2__AddVideoSourceConfigurationResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 

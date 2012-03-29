@@ -1,4 +1,9 @@
 {
+	"Media":	[{
+			"Id":	1,
+			"Token":	"1",
+			"Name":	"Profile 0"
+		}],
 	"Preset":	[{
 			"Id":	1,
 			"Token":	"1",
