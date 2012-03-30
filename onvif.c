@@ -1508,32 +1508,77 @@ static const char *get_from_json(struct soap* soap, const char *name, cJSON *pNo
 
 char *pszIP[] = {"0.0.0.0"};
 
-
-int get_source_porfile(struct soap* soap, const int nId, struct ns3__Profile *pProfile, cJSON *pNode)
+static char *get_string_fr_sqlite(sqlite3 *db)
 {
-	
-	 // Video Source Config
-	cJSON *video_sourc_json = cJSON_GetObjectItem(pNode, "VideoSource");
-	cJSON *bounds_json = cJSON_GetObjectItem(video_sourc_json, "Bounds");
-  struct ns3__IntRectangle *pBounds;
+	char *zErrMsg = 0;
+	int nrow = 0, ncolumn = 0;
+    char **azResult; //二维数组存放结果
+
+    char *sql = "select count(distinct profile_name) from media_config";
+    sqlite3_get_table( db , sql , &azResult , &nrow , &ncolumn , &zErrMsg );
+	return azResult[1];
+}
+
+static char *find_by_sqlstring(sqlite3 *db, char *string)
+{
+	char *zErrMsg = 0;
+	int nrow = 0, ncolumn = 0;
+    char **azResult; //二维数组存放结果
+
+    sqlite3_get_table( db , string , &azResult , &nrow , &ncolumn , &zErrMsg );
+	if(nrow == 1)
+	{
+	    return azResult[1];
+	}
+	else
+	{
+	    return NULL;
+	}
+}
+
+#define SQL_LENS 200  //sql inquire strings lens
+
+void combin_str(char *sql, char *profile_name, int chengji, char *name, char *parents)
+{
+    memset(sql, 0, SQL_LENS);
+	sprintf(sql, "select value from media_config where profile_name='%s' and chengji=%d and name='%s' and parents='%s'", profile_name, chengji, name, parents);
+}
+
+//int get_source_porfile(struct soap* soap, const int nId, struct ns3__Profile *pProfile, cJSON *pNode)
+int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db)
+{
+    struct ns3__IntRectangle *pBounds;
 	pBounds = (struct ns3__IntRectangle *)soap_malloc(soap,sizeof(struct ns3__IntRectangle));
 	memset(pBounds, 0, sizeof(struct ns3__IntRectangle));
-	pBounds->x = atoi((char *)get_from_json(soap, "x", bounds_json));
-	pBounds->y = atoi((char *)get_from_json(soap, "y", bounds_json));
-	pBounds->width =  atoi((char *)get_from_json(soap, "width", bounds_json));
-	pBounds->height = atoi((char *)get_from_json(soap, "height", bounds_json));
+	
+	char *sql = (char *)malloc (SQL_LENS);
 
-  struct ns3__VideoSourceConfiguration *pVideoSourcesConfig;
+	combin_str(sql, profile_name, 3, "x", "Bounds");
+	pBounds->x = atoi(find_by_sqlstring(db, sql));
+    combin_str(sql, profile_name, 3, "y", "Bounds");
+    pBounds->y = atoi(find_by_sqlstring(db, sql));
+	combin_str(sql, profile_name, 3, "width", "Bounds");
+    pBounds->width =  atoi(find_by_sqlstring(db, sql));
+	combin_str(sql, profile_name, 3, "height", "Bounds");
+	pBounds->height = atoi(find_by_sqlstring(db, sql));
+	
+	free(sql);
+	
+
+
+    struct ns3__VideoSourceConfiguration *pVideoSourcesConfig;
 	pVideoSourcesConfig = (struct ns3__VideoSourceConfiguration *)soap_malloc(soap,sizeof(struct ns3__VideoSourceConfiguration));
 	memset(pVideoSourcesConfig, 0, sizeof(struct ns3__VideoSourceConfiguration));
 	
-	pVideoSourcesConfig->Name = (char *)get_from_json(soap, "Name", video_sourc_json);
+	combin_str(sql, profile_name, 2, "Name", "VideoSource"); 
+	pVideoSourcesConfig->Name = find_by_sqlstring(db, sql);
+	/*
 	pVideoSourcesConfig->UseCount = atoi((char *)get_from_json(soap, "height", bounds_json));
 	pVideoSourcesConfig->token = (char *)get_from_json(soap, "Token", video_sourc_json);
 	pVideoSourcesConfig->SourceToken = (char *)get_from_json(soap, "SourceToken", video_sourc_json);
-  pVideoSourcesConfig->Bounds = pBounds;
+    pVideoSourcesConfig->Bounds = pBounds;*/
   
-  
+ /* 
     // Video Encoder Configuration
 	cJSON *video_encode_json = cJSON_GetObjectItem(pNode, "VideoEncode");
 	cJSON *resolute_json = cJSON_GetObjectItem(video_encode_json, "resolute");
@@ -1733,7 +1778,6 @@ int get_source_porfile(struct soap* soap, const int nId, struct ns3__Profile *pP
    	pszPTZConf->DefaultPTZTimeout = pszDefaultPTZTimeout;
    	// @ }
   
-
    // pProfile->Name = val;
 	pProfile->Name = (char *)get_from_json(soap, "Name", pNode);
     pProfile->token= (char *)get_from_json(soap, "Token", pNode);;
@@ -1741,63 +1785,54 @@ int get_source_porfile(struct soap* soap, const int nId, struct ns3__Profile *pP
     pProfile->VideoEncoderConfiguration= pVideoEncoderConfig;
     pProfile->PTZConfiguration = pszPTZConf;
 	xsd__boolean fixed = xsd__boolean__false_;
-	pProfile->fixed = &fixed;
+	pProfile->fixed = &fixed;*/
 }
 
 
-static int sqlite()
+static sqlite3 *sqlite()
 {
 	 sqlite3 *db;
-    char *zErrMsg = 0;
     int rc;
 
     rc = sqlite3_open(CONFIG_DB, &db);
     if( rc ){
         fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
-        return(1);
+        return NULL;
     }
+    
+	return db;
+}
 
-    int nrow = 0, ncolumn = 0;
+static int cacu_profile_num(sqlite3 *db)
+{
+	char *zErrMsg = 0;
+	int nrow = 0, ncolumn = 0;
     char **azResult; //二维数组存放结果
 
-    char *sql = "SELECT * FROM test ";
+    char *sql = "select count(distinct profile_name) from media_config";
     sqlite3_get_table( db , sql , &azResult , &nrow , &ncolumn , &zErrMsg );
-    int i = 0 ;
-    printf( "row:%d column=%d \n" , nrow , ncolumn );
+	return atoi(azResult[1]);
+}
 
-    sqlite3_close(db);
-	return 0;
+static char **all_profile(sqlite3 *db)
+{
+	char *zErrMsg = 0;
+	int nrow = 0, ncolumn = 0;
+    char **azResult; //二维数组存放结果
+
+    char *sql = "select distinct profile_name from media_config";
+    sqlite3_get_table( db , sql , &azResult , &nrow , &ncolumn , &zErrMsg );
+	return azResult;
 }
 
 
 int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProfiles, struct _ns2__GetProfilesResponse *ns2__GetProfilesResponse)
 {
-  printf("%s\n",__FUNCTION__);
-  sqlite();
-  
-  //open conf.json files
-  	cJSON *root    = NULL;
-	cJSON *pJsonMedia = NULL;
-	cJSON *pNode   = NULL;
+    printf("%s\n",__FUNCTION__);
 	
-	char  *pszBuf  = NULL;
-	int   nRet = 0;
-	
-	nRet = cJSON_FromFile(CONFIG_FILE, &root, &pszBuf);
-	if (0 != nRet) {
-		printf("Load Json file failed.\n");
-		return -101;
-	}
-	
-	pJsonMedia = cJSON_GetObjectItem(root,"Media");
-	if (NULL == pJsonMedia) {
-		printf("Get Preset failed. ErrInfo: %s\n", cJSON_GetErrorPtr());
-		return SOAP_FAULT;
-	} 
-  
-
-	int nCounts = cJSON_GetArraySize(pJsonMedia);
+    sqlite3 *db = sqlite();
+    int nCounts = cacu_profile_num(db);
 
     struct ns3__Profile *pProfile = NULL;	
     pProfile = (struct ns3__Profile *)soap_malloc(soap,sizeof(struct ns3__Profile)*nCounts);
@@ -1806,14 +1841,13 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 	ns2__GetProfilesResponse->__sizeProfiles = nCounts;
     ns2__GetProfilesResponse->Profiles = pProfile;
 	
-	
+	char **profile_name = all_profile(db);
 	int i = 0;
     for(i = 0; i < nCounts; i++)
 	{
-		pNode = cJSON_GetArrayItem(pJsonMedia, i);
-		get_source_porfile(soap, i, &pProfile[i], pNode);
+		get_source_porfile(soap,profile_name[i+1], db);
 	}
-
+    sqlite3_close(db);
 	
     return SOAP_OK;
 }
