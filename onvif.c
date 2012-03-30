@@ -17,6 +17,7 @@
 
 #define CONFIG_FILE			"/etc/ambaipcam/IPC_Q313/config/onvif.json"
 #define CONFIG_DB           "/etc/ambaipcam/IPC_Q313/config/config.db"
+#define SQL_LENS 200  //sql inquire strings lens
 
 typedef struct ONVIF_FIFO_Comand_s 
 {
@@ -1469,16 +1470,38 @@ struct Node *get_media_json_node(struct soap* soap)
 	return node;
 }
 
+static sqlite3 *sqlite()
+{
+	 sqlite3 *db;
+    int rc;
+
+    rc = sqlite3_open(CONFIG_DB, &db);
+    if( rc ){
+        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return NULL;
+    }
+    
+	return db;
+}
+
+
  int  __ns2__CreateProfile(struct soap* soap, struct _ns2__CreateProfile *ns2__CreateProfile, struct _ns2__CreateProfileResponse *ns2__CreateProfileResponse){
 	 printf("%s\n",__FUNCTION__);
-	   //open conf.json files
-/*
-	struct Node *pnode = get_media_json_node(soap);
+	sqlite3 *db = sqlite();
 	
-	cJSON_AddStringToObject(pnode->node,"type", "rect");
-	 
-	cJSON_ToFile(CONFIG_FILE, pnode->node, pnode->pszBuf);*/
-	 return SOAP_OK;
+	char *zErrMsg = 0;
+	int nrow = 0, ncolumn = 0;
+    char **azResult; //二维数组存放结果
+    char *sql = (char *)malloc(SQL_LENS);
+	memset(sql, 0, SQL_LENS);
+	if(ns2__CreateProfile != NULL){
+		
+		sprintf(sql, "insert into media_config (profile_name, chengji) values ('%s', 0)", ns2__CreateProfile->Name);
+        sqlite3_get_table( db , sql , &azResult , &nrow , &ncolumn , &zErrMsg );
+    }
+	
+	return SOAP_OK;
 }
 
 int __ns2__GetProfile(struct soap* soap, struct _ns2__GetProfile *ns2__GetProfile, struct _ns2__GetProfileResponse *ns2__GetProfileResponse)
@@ -1536,7 +1559,7 @@ static char *find_by_sqlstring(sqlite3 *db, char *string)
 	}
 }
 
-#define SQL_LENS 200  //sql inquire strings lens
+
 
 void combin_str(char *sql, char *profile_name, int chengji, char *name, char *parents)
 {
@@ -1544,15 +1567,15 @@ void combin_str(char *sql, char *profile_name, int chengji, char *name, char *pa
 	sprintf(sql, "select value from media_config where profile_name='%s' and chengji=%d and name='%s' and parents='%s'", profile_name, chengji, name, parents);
 }
 
+
 //int get_source_porfile(struct soap* soap, const int nId, struct ns3__Profile *pProfile, cJSON *pNode)
-int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db)
+int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db, struct ns3__Profile *pProfile)
 {
+    char *sql = (char *)malloc (SQL_LENS);
+	
     struct ns3__IntRectangle *pBounds;
 	pBounds = (struct ns3__IntRectangle *)soap_malloc(soap,sizeof(struct ns3__IntRectangle));
 	memset(pBounds, 0, sizeof(struct ns3__IntRectangle));
-	
-	char *sql = (char *)malloc (SQL_LENS);
-
 	combin_str(sql, profile_name, 3, "x", "Bounds");
 	pBounds->x = atoi(find_by_sqlstring(db, sql));
     combin_str(sql, profile_name, 3, "y", "Bounds");
@@ -1561,40 +1584,45 @@ int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db)
     pBounds->width =  atoi(find_by_sqlstring(db, sql));
 	combin_str(sql, profile_name, 3, "height", "Bounds");
 	pBounds->height = atoi(find_by_sqlstring(db, sql));
-	
-	free(sql);
-	
-
 
     struct ns3__VideoSourceConfiguration *pVideoSourcesConfig;
 	pVideoSourcesConfig = (struct ns3__VideoSourceConfiguration *)soap_malloc(soap,sizeof(struct ns3__VideoSourceConfiguration));
 	memset(pVideoSourcesConfig, 0, sizeof(struct ns3__VideoSourceConfiguration));
-	
 	combin_str(sql, profile_name, 2, "Name", "VideoSource"); 
 	pVideoSourcesConfig->Name = find_by_sqlstring(db, sql);
-	/*
-	pVideoSourcesConfig->UseCount = atoi((char *)get_from_json(soap, "height", bounds_json));
-	pVideoSourcesConfig->token = (char *)get_from_json(soap, "Token", video_sourc_json);
-	pVideoSourcesConfig->SourceToken = (char *)get_from_json(soap, "SourceToken", video_sourc_json);
-    pVideoSourcesConfig->Bounds = pBounds;*/
+	combin_str(sql, profile_name, 2, "UseCount", "VideoSource"); 
+	pVideoSourcesConfig->UseCount = atoi(find_by_sqlstring(db, sql));	
+	combin_str(sql, profile_name, 2, "token", "VideoSource"); 
+	pVideoSourcesConfig->token = find_by_sqlstring(db, sql);	
+	combin_str(sql, profile_name, 2, "SourceToken", "VideoSource"); 
+	pVideoSourcesConfig->SourceToken = find_by_sqlstring(db, sql);	
+    pVideoSourcesConfig->Bounds = pBounds;
+	
+
   
- /* 
-    // Video Encoder Configuration
-	cJSON *video_encode_json = cJSON_GetObjectItem(pNode, "VideoEncode");
-	cJSON *resolute_json = cJSON_GetObjectItem(video_encode_json, "resolute");
-  struct ns3__VideoResolution *pVideoResolution;
+    struct ns3__VideoResolution *pVideoResolution;
 	pVideoResolution = (struct ns3__VideoResolution *)soap_malloc(soap,sizeof(struct ns3__VideoResolution));
-	pVideoResolution->Width = atoi((char *)get_from_json(soap, "width", resolute_json));
-	pVideoResolution->Height = atoi((char *)get_from_json(soap, "height", resolute_json));
+	memset(pVideoResolution, 0, sizeof(struct ns3__VideoResolution));
+	combin_str(sql, profile_name, 3, "width", "resolute"); 
+	pVideoResolution->Width = atoi(find_by_sqlstring(db, sql));
+	combin_str(sql, profile_name, 3, "height", "resolute"); 
+	pVideoResolution->Height = atoi(find_by_sqlstring(db, sql));
+	
+	
+	
 	
 	struct ns3__VideoEncoderConfiguration *pVideoEncoderConfig;
 	pVideoEncoderConfig = (struct ns3__VideoEncoderConfiguration *)soap_malloc(soap,sizeof(struct ns3__VideoEncoderConfiguration));
 	memset(pVideoEncoderConfig, 0, sizeof(struct ns3__VideoEncoderConfiguration));
-	pVideoEncoderConfig->Name = (char *)get_from_json(soap, "Name", video_encode_json);
-	pVideoEncoderConfig->UseCount = atoi((char *)get_from_json(soap, "UseCount", video_encode_json));
-	pVideoEncoderConfig->token = (char *)get_from_json(soap, "Token", video_encode_json);
+	combin_str(sql, profile_name, 2, "Name", "VideoEncode"); 
+	pVideoEncoderConfig->Name = find_by_sqlstring(db, sql);
+    combin_str(sql, profile_name, 2, "UseCount", "VideoEncode"); 
+	pVideoEncoderConfig->UseCount = atoi(find_by_sqlstring(db, sql));
+	combin_str(sql, profile_name, 2, "token", "VideoEncode"); 
+	pVideoEncoderConfig->token = find_by_sqlstring(db, sql);
 	
-	int EncodeType = atoi((char *)get_from_json(soap, "Encoding", video_encode_json)); 
+	combin_str(sql, profile_name, 2, "Encoding", "VideoEncode"); 
+	int EncodeType = atoi(find_by_sqlstring(db, sql)); 
 	switch(EncodeType){
 		case 0: 
 		   pVideoEncoderConfig->Encoding = ns3__VideoEncoding__JPEG;
@@ -1605,23 +1633,24 @@ int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db)
 		case 2:
 		   pVideoEncoderConfig->Encoding = ns3__VideoEncoding__H264;
 		   break;
-	}
-	
+	}	 
   pVideoEncoderConfig->Resolution = pVideoResolution;
-  pVideoEncoderConfig->Quality = atof((char *)get_from_json(soap, "Quality", video_encode_json));
+  combin_str(sql, profile_name, 2, "Quality", "VideoEncode");
+  pVideoEncoderConfig->Quality = atof(find_by_sqlstring(db, sql)); 
 
-//
-  cJSON *rate_json = cJSON_GetObjectItem(video_encode_json, "RateControl");
   struct ns3__VideoRateControl *pVideoRateCtrl;
   pVideoRateCtrl= (struct ns3__VideoRateControl *)soap_malloc(soap,sizeof(struct ns3__VideoRateControl));
   memset(pVideoRateCtrl,0,sizeof(struct ns3__VideoRateControl));
-  pVideoRateCtrl->FrameRateLimit = atoi((char *)get_from_json(soap, "FrameRateLimit", rate_json));
-	pVideoRateCtrl->EncodingInterval= atoi((char *)get_from_json(soap, "EncodingInterval", rate_json));
-	pVideoRateCtrl->BitrateLimit = atoi((char *)get_from_json(soap, "BitrateLimit", rate_json));
+  combin_str(sql, profile_name, 3, "FrameRateLimit", "RateControl");
+  pVideoRateCtrl->FrameRateLimit = atoi(find_by_sqlstring(db, sql));
+  combin_str(sql, profile_name, 3, "EncodingInterval", "RateControl");
+  pVideoRateCtrl->EncodingInterval= atoi(find_by_sqlstring(db, sql));
+  combin_str(sql, profile_name, 3, "BitrateLimit", "RateControl");
+  pVideoRateCtrl->BitrateLimit = atoi(find_by_sqlstring(db, sql));
   pVideoEncoderConfig->RateControl = pVideoRateCtrl;
 
-
   //configuration
+  
   
   switch(EncodeType){
 		case 0: 
@@ -1630,13 +1659,14 @@ int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db)
 		case 1:
 		   pVideoEncoderConfig->Encoding = ns3__VideoEncoding__MPEG4;
 		   break;
-		case 2:
-		    cJSON *h264 = cJSON_GetObjectItem(video_encode_json, "H264");
+		case 2:		    
 		    struct ns3__H264Configuration *pH264Config;
 			pH264Config = (struct ns3__H264Configuration *)soap_malloc(soap,sizeof(struct ns3__H264Configuration));
             memset(pH264Config,0,sizeof(struct ns3__H264Configuration));
-            pH264Config->GovLength = atoi((char *)get_from_json(soap, "GovLength", h264));
-			switch(atoi((char *)get_from_json(soap, "H264Profile", h264))){
+            combin_str(sql, profile_name, 3, "GovLength", "H264");
+			pH264Config->GovLength = atoi(find_by_sqlstring(db, sql));
+			combin_str(sql, profile_name, 3, "H264Profile", "H264");
+			switch(atoi(find_by_sqlstring(db, sql))){
 				case 0:
 				    pH264Config->H264Profile = ns3__H264Profile__Baseline;
 					break;
@@ -1654,22 +1684,16 @@ int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db)
             pVideoEncoderConfig->H264 = pH264Config;
 			break;
 	}
- 
-  
-    cJSON *multicast_config = cJSON_GetObjectItem(video_encode_json, "MulticastConfig");
+
     struct ns3__MulticastConfiguration *pMulticastConfig;
     pMulticastConfig = (struct ns3__MulticastConfiguration *)soap_malloc(soap,sizeof(struct ns3__MulticastConfiguration));
     memset(pMulticastConfig,0,sizeof(struct ns3__MulticastConfiguration));
 
-	//char *pszIP = (char *)soap_malloc(soap, 128);
-	//memset(pszIP, 0, 128);
-	//strcpy(pszIP, "0.0.0.0");
-    
-	cJSON *addr_json = cJSON_GetObjectItem(multicast_config, "addr");
     struct ns3__IPAddress *pxAddr;
     pxAddr = (struct ns3__IPAddress *)soap_malloc(soap,sizeof(struct ns3__IPAddress));
     memset(pxAddr,0,sizeof(struct ns3__IPAddress));
-	switch(atoi((char *)get_from_json(soap, "Type", addr_json))){
+	combin_str(sql, profile_name, 4, "type", "addr");
+	switch(atoi(find_by_sqlstring(db, sql))){
 		case 0:
 		    pxAddr->Type = ns3__IPType__IPv4;
 			break;
@@ -1677,15 +1701,16 @@ int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db)
 		    pxAddr->Type = ns3__IPType__IPv6;
 			break;
 	}
-	
-	static char *ipv4_address = (char *)get_from_json(soap, "IPv4Address", addr_json);
-    pxAddr->IPv4Address = &ipv4_address;
-	
+    combin_str(sql, profile_name, 4, "IPv4Address", "addr");
+	static char *ipv4_address = find_by_sqlstring(db, sql);
+    pxAddr->IPv4Address = &ipv4_address;	
     pMulticastConfig->Address  = pxAddr;
-	
-    pMulticastConfig->Port = atoi((char *)get_from_json(soap, "Port", multicast_config));
-    pMulticastConfig->TTL = atoi((char *)get_from_json(soap, "TTL", multicast_config));
-	switch(atoi((char *)get_from_json(soap, "TTL", multicast_config))){
+	combin_str(sql, profile_name, 3, "Port", "MulticastConfig");
+    pMulticastConfig->Port = atoi(find_by_sqlstring(db, sql));
+	combin_str(sql, profile_name, 3, "TTL", "MulticastConfig");
+    pMulticastConfig->TTL = atoi(find_by_sqlstring(db, sql));
+	combin_str(sql, profile_name, 3, "AutoStart", "MulticastConfig");
+	switch(atoi(find_by_sqlstring(db, sql))){
 		case 0:
 		    pMulticastConfig->AutoStart = xsd__boolean__false_;
 			break;
@@ -1696,8 +1721,11 @@ int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db)
     
     pVideoEncoderConfig->Multicast = pMulticastConfig;
 	
-    pVideoEncoderConfig->SessionTimeout = (char *)get_from_json(soap, "SessionTimeout", video_encode_json);
+	combin_str(sql, profile_name, 2, "SessionTimeout", "VideoEncode");
+    pVideoEncoderConfig->SessionTimeout = find_by_sqlstring(db, sql);
     
+	
+	  
     // @ {
     // PTZ config
     struct ns3__PTZConfiguration *pszPTZConf = NULL;
@@ -1779,30 +1807,19 @@ int get_source_porfile(struct soap* soap,char *profile_name, sqlite3 *db)
    	// @ }
   
    // pProfile->Name = val;
-	pProfile->Name = (char *)get_from_json(soap, "Name", pNode);
-    pProfile->token= (char *)get_from_json(soap, "Token", pNode);;
+	combin_str(sql, profile_name, 1, "Name", "NULL");
+	pProfile->Name = find_by_sqlstring(db, sql);
+	combin_str(sql, profile_name, 1, "Token", "NULL");
+    pProfile->token= find_by_sqlstring(db, sql);
     pProfile->VideoSourceConfiguration = pVideoSourcesConfig;
     pProfile->VideoEncoderConfiguration= pVideoEncoderConfig;
     pProfile->PTZConfiguration = pszPTZConf;
 	xsd__boolean fixed = xsd__boolean__false_;
-	pProfile->fixed = &fixed;*/
+	pProfile->fixed = &fixed;
+	free(sql);	
 }
 
 
-static sqlite3 *sqlite()
-{
-	 sqlite3 *db;
-    int rc;
-
-    rc = sqlite3_open(CONFIG_DB, &db);
-    if( rc ){
-        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-        sqlite3_close(db);
-        return NULL;
-    }
-    
-	return db;
-}
 
 static int cacu_profile_num(sqlite3 *db)
 {
@@ -1845,7 +1862,7 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 	int i = 0;
     for(i = 0; i < nCounts; i++)
 	{
-		get_source_porfile(soap,profile_name[i+1], db);
+		get_source_porfile(soap,profile_name[i+1], db, pProfile);
 	}
     sqlite3_close(db);
 	
