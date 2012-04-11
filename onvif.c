@@ -1958,6 +1958,7 @@ int __ns2__GetProfiles(struct soap* soap, struct _ns2__GetProfiles *ns2__GetProf
 
 static void insert_by_name_cj(sqlite3 *db, char *profile_name_now, int chengji, char *name, char *parents, char *value)
 {
+
 }
 
 
@@ -1986,10 +1987,6 @@ int  __ns2__AddVideoEncoderConfiguration(struct soap* soap, struct _ns2__AddVide
 
 
     //	 sql_atoi(db, &(pBounds->width), sql);
-
-
-
-
 
 
     //         _ns2__AddVideoEncoderConfiguration->ProfileToken;
@@ -2044,13 +2041,141 @@ int  __ns2__DeleteProfile(struct soap* soap, struct _ns2__DeleteProfile *ns2__De
 
 int  __ns2__GetVideoSourceConfigurations(struct soap* soap, struct _ns2__GetVideoSourceConfigurations *ns2__GetVideoSourceConfigurations, struct _ns2__GetVideoSourceConfigurationsResponse *ns2__GetVideoSourceConfigurationsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
 
+
+static int get_number_encoder_config(sqlite3 *db)
+{
+    char *zErrMsg = 0;
+    int nrow = 0, ncolumn = 0;
+    char **azResult; //二维数组存放结果
+    
+//    sprintf(sql, "select distinct token from encoder_config");
+    sqlite3_get_table( db , "select distinct token from encoder_config" , &azResult , &nrow , &ncolumn , &zErrMsg );
+    return atoi(azResult[1]);;
+}
+
+
+char *get_encoder_config(struct soap* soap,sqlite3 *db, char *name, char *token)
+{
+    char *zErrMsg = 0;
+    int nrow = 0, ncolumn = 0;
+    char **azResult; //二维数组存放结果
+    char sql[SQL_LENS] = {0};
+    sprintf(sql, "select value from encoder_config where token='%s' and name='%s'", token, name);
+    sqlite3_get_table( db , sql, &azResult , &nrow , &ncolumn , &zErrMsg );
+    
+    int lens =   strlen(azResult[1]) + 1;
+    char *ret ;
+    ret = (char *)soap_malloc(soap, lens);
+    memset(ret, 0, lens);
+    strcpy(ret, azResult[1]);
+    return ret;
+
+}
+
+
 int  __ns2__GetVideoEncoderConfigurations(
         struct soap* soap, 
         struct _ns2__GetVideoEncoderConfigurations *ns2__GetVideoEncoderConfigurations, 
         struct _ns2__GetVideoEncoderConfigurationsResponse *ns2__GetVideoEncoderConfigurationsResponse)
 {
     printf("%s\n",__FUNCTION__);
-    return SOAP_OK;
+
+    sqlite3 *db = sqlite();
+
+    ns2__GetVideoEncoderConfigurationsResponse->__sizeConfigurations = get_number_encoder_config(db);
+   
+    //start
+    struct ns3__VideoEncoderConfiguration *configuration= (struct ns3__VideoEncoderConfiguration*)soap_malloc(soap,sizeof(struct ns3__VideoEncoderConfiguration));
+    memset(configuration, 0, sizeof(struct ns3__VideoEncoderConfiguration));
+    configuration->Name = get_encoder_config(soap, db, "Name", "1");
+    configuration->UseCount = atoi(get_encoder_config(soap, db, "UseCount", "1")); 
+    configuration->token = get_encoder_config(soap, db, "Token", "1");
+    
+    int     encode_enum =  atoi(get_encoder_config(soap, db, "UseCount", "1")); 
+    switch(encode_enum)
+    {
+        case 0:
+            configuration->Encoding = ns3__VideoEncoding__JPEG;
+            break;
+        case 1:
+            configuration->Encoding = ns3__VideoEncoding__MPEG4;
+            break;
+        case 2: 
+            configuration->Encoding = ns3__VideoEncoding__H264;
+            break;
+    }
+    ns2__GetVideoEncoderConfigurationsResponse->Configurations = configuration;
+    
+    //resolution
+    struct ns3__VideoResolution * resolution =  (struct ns3__VideoResolution*)soap_malloc(soap,sizeof(struct ns3__VideoResolution));
+    resolution->Width = atoi(get_encoder_config(soap, db, "width", "1")); 
+    resolution->Height = atoi(get_encoder_config(soap, db, "height", "1")); 
+    configuration->Resolution = resolution;
+    configuration->Quality = atof(get_encoder_config(soap, db, "Quality", "1")); 
+ 
+    //ratecontrol
+    struct ns3__VideoRateControl*  rate_control =  (struct ns3__VideoRateControl*)soap_malloc(soap,sizeof(struct ns3__VideoRateControl));
+
+    rate_control->FrameRateLimit = atoi(get_encoder_config(soap, db, "FrameRateLimit", "1")); 
+    rate_control->EncodingInterval = atoi(get_encoder_config(soap, db, "EncodingInterval", "1")); 
+    rate_control->BitrateLimit = atoi(get_encoder_config(soap, db, "BitrateLimit", "1")); 
+    configuration->RateControl = rate_control;
+
+    //h264
+    struct ns3__H264Configuration* h_264  =  (struct ns3__H264Configuration*)soap_malloc(soap,sizeof(struct ns3__H264Configuration));
+    configuration->H264 = h_264;
+    h_264->GovLength = atoi(get_encoder_config(soap, db, "GovLength", "1")); 
+    int h264_profile_enum = atoi(get_encoder_config(soap, db, "H264Profile", "1")); 
+    switch( h264_profile_enum )
+    {
+        case 0:
+            h_264->H264Profile = ns3__H264Profile__Baseline;
+            break;
+        case 1:
+            h_264->H264Profile = ns3__H264Profile__Main;
+            break;
+        case 2:
+            h_264->H264Profile = ns3__H264Profile__Extended;
+            break;
+        case 3:
+            h_264->H264Profile = ns3__H264Profile__High;
+            break;
+    }
+
+
+// Multicast
+   struct ns3__MulticastConfiguration * multicast  =  (struct ns3__MulticastConfiguration*)soap_malloc(soap,sizeof(struct ns3__MulticastConfiguration));
+   configuration->Multicast = multicast;
+   struct ns3__IPAddress * address  =  (struct ns3__IPAddress*)soap_malloc(soap,sizeof(struct ns3__IPAddress));
+   multicast->Address = address;
+  int address_enum = atoi(get_encoder_config(soap, db, "H264Profile", "1")); 
+  switch(address_enum)
+  {
+      case 0:
+          address->Type = ns3__IPType__IPv4 ;	          
+          break;
+      case 1:
+         address->Type =  ns3__IPType__IPv6 ;
+         break;
+  } 
+  static char *ip_address =  get_encoder_config(soap, db, "IPv4Address", "1"); 
+
+   address->IPv4Address =  &ip_address;
+   multicast->Port = atoi(get_encoder_config(soap, db, "Port", "1")); 
+   multicast->TTL = atoi(get_encoder_config(soap, db, "TTL", "1")); 
+
+   int auto_start_enum = atoi(get_encoder_config(soap, db, "AutoStart", "1"));
+   switch(auto_start_enum)
+   {
+       case 0:
+           multicast->AutoStart = xsd__boolean__false_;
+           break;
+       case 1:
+           multicast->AutoStart = xsd__boolean__true_;
+           break;
+   }
+   return SOAP_OK;
+
 }
 
 int  __ns2__GetAudioSourceConfigurations(struct soap* soap, struct _ns2__GetAudioSourceConfigurations *ns2__GetAudioSourceConfigurations, struct _ns2__GetAudioSourceConfigurationsResponse *ns2__GetAudioSourceConfigurationsResponse){printf("%s\n",__FUNCTION__);return SOAP_OK;}
